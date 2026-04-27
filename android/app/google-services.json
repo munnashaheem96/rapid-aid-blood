@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "442278868539",
+    "project_id": "rapid-aid-48ab9",
+    "storage_bucket": "rapid-aid-48ab9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:442278868539:android:b5ddfb79aef3da1a96ce1e",
+        "android_client_info": {
+          "package_name": "com.example.rapid_aid"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBJFDFM4MtfFhuve8bHh0iYSB9SuZ5CNkM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
