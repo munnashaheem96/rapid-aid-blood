@@ -1,7 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'phone_verify_screen.dart';
 
 class ProfileUser extends StatefulWidget {
   const ProfileUser({super.key});
@@ -11,40 +12,24 @@ class ProfileUser extends StatefulWidget {
 }
 
 class _ProfileUserState extends State<ProfileUser> {
-  bool emailSending = false;
-  bool emailVerified = false;
+  /// 📍 LOCATION DATA
+  Map<String, dynamic> locationData = {};
+  List<String> states = [];
 
   @override
   void initState() {
     super.initState();
-    checkEmail();
+    loadLocationData();
   }
 
-  Future<void> checkEmail() async {
-    await FirebaseAuth.instance.currentUser!.reload();
+  Future<void> loadLocationData() async {
+    final response = await rootBundle.loadString('assets/india_locations.json');
+    final data = jsonDecode(response);
+
     setState(() {
-      emailVerified = FirebaseAuth.instance.currentUser!.emailVerified;
+      locationData = data;
+      states = data.keys.toList();
     });
-  }
-
-  Future<void> sendVerificationEmail() async {
-    setState(() => emailSending = true);
-
-    try {
-      await FirebaseAuth.instance.currentUser!.sendEmailVerification();
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Verification email sent")));
-
-      await Future.delayed(const Duration(seconds: 30));
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Try again later")));
-    }
-
-    setState(() => emailSending = false);
   }
 
   @override
@@ -54,7 +39,7 @@ class _ProfileUserState extends State<ProfileUser> {
     return Scaffold(
       body: Stack(
         children: [
-          // 🔴 Gradient Header
+          /// 🔴 HEADER
           Container(
             height: 260,
             decoration: const BoxDecoration(
@@ -76,16 +61,11 @@ class _ProfileUserState extends State<ProfileUser> {
                 }
 
                 var data = snapshot.data!.data() as Map<String, dynamic>;
-
-                // 🔥 Verification Logic
-                bool phoneVerified =
-                    FirebaseAuth.instance.currentUser!.phoneNumber != null;
-
-                bool isFullyVerified = emailVerified && phoneVerified;
+                bool isAvailable = data['isAvailable'] ?? false;
 
                 return Column(
                   children: [
-                    // 🔙 AppBar
+                    /// 🔙 HEADER
                     Row(
                       children: [
                         IconButton(
@@ -112,7 +92,7 @@ class _ProfileUserState extends State<ProfileUser> {
 
                     const SizedBox(height: 10),
 
-                    // 🧑 Avatar
+                    /// 🧑 AVATAR
                     CircleAvatar(
                       radius: 55,
                       backgroundColor: Colors.white,
@@ -128,6 +108,7 @@ class _ProfileUserState extends State<ProfileUser> {
 
                     const SizedBox(height: 10),
 
+                    /// 👤 NAME
                     Text(
                       data['name'] ?? "",
                       style: const TextStyle(
@@ -137,12 +118,64 @@ class _ProfileUserState extends State<ProfileUser> {
                       ),
                     ),
 
+                    const SizedBox(height: 10),
+
+                    /// 🟢 AVAILABILITY
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 20),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 15,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isAvailable
+                            ? Colors.green.withOpacity(0.15)
+                            : Colors.red.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.circle,
+                            size: 12,
+                            color: isAvailable ? Colors.green : Colors.red,
+                          ),
+
+                          const SizedBox(width: 10),
+
+                          Expanded(
+                            child: Text(
+                              isAvailable ? "Available Now" : "Not Available",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: isAvailable ? Colors.green : Colors.red,
+                              ),
+                            ),
+                          ),
+
+                          Switch(
+                            value: isAvailable,
+                            onChanged: (value) async {
+                              final user = FirebaseAuth.instance.currentUser;
+
+                              await FirebaseFirestore.instance
+                                  .collection("users")
+                                  .doc(user!.uid)
+                                  .set({
+                                    "isAvailable": value,
+                                    "lastActive": FieldValue.serverTimestamp(),
+                                  }, SetOptions(merge: true));
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+
                     const SizedBox(height: 20),
 
-                    // ⚪ White Card
+                    /// ⚪ WHITE CARD
                     Expanded(
                       child: Container(
-                        width: double.infinity,
                         padding: const EdgeInsets.all(20),
                         decoration: const BoxDecoration(
                           color: Colors.white,
@@ -153,177 +186,78 @@ class _ProfileUserState extends State<ProfileUser> {
                         child: SingleChildScrollView(
                           child: Column(
                             children: [
-                              // 📧 EMAIL ROW
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _tile(
-                                      Icons.email,
-                                      "Email",
-                                      data['email'] ?? "",
-                                    ),
-                                  ),
-
-                                  emailVerified
-                                      ? const Icon(
-                                          Icons.verified,
-                                          color: Colors.green,
-                                        )
-                                      : ElevatedButton(
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.white,
-                                            foregroundColor: const Color(
-                                              0xFFA51313,
-                                            ),
-                                            side: const BorderSide(
-                                              color: Color(0xFFA51313),
-                                            ),
-                                          ),
-                                          onPressed: emailSending
-                                              ? null
-                                              : sendVerificationEmail,
-                                          child: emailSending
-                                              ? const SizedBox(
-                                                  height: 12,
-                                                  width: 12,
-                                                  child:
-                                                      CircularProgressIndicator(
-                                                        strokeWidth: 2,
-                                                      ),
-                                                )
-                                              : const Text("Verify"),
-                                        ),
-                                ],
+                              _editableTile(
+                                Icons.email,
+                                "Email",
+                                "email",
+                                data['email'] ?? "",
                               ),
-
                               const Divider(),
 
-                              // 📱 PHONE ROW
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _tile(
-                                      Icons.phone,
-                                      "Phone",
-                                      data['phone'] ?? "",
-                                    ),
-                                  ),
-
-                                  phoneVerified
-                                      ? const Icon(
-                                          Icons.verified,
-                                          color: Colors.green,
-                                        )
-                                      : ElevatedButton(
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.white,
-                                            foregroundColor: const Color(
-                                              0xFFA51313,
-                                            ),
-                                            side: const BorderSide(
-                                              color: Color(0xFFA51313),
-                                            ),
-                                          ),
-                                          onPressed: () {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (_) =>
-                                                    const PhoneVerifyScreen(),
-                                              ),
-                                            );
-                                          },
-                                          child: const Text("Verify"),
-                                        ),
-                                ],
+                              _editableTile(
+                                Icons.phone,
+                                "Phone",
+                                "phone",
+                                data['phone'] ?? "",
                               ),
-
                               const Divider(),
 
-                              _tile(Icons.cake, "DOB", data['dob'] ?? ""),
+                              /// 📍 LOCATION DROPDOWN TILE
+                              _locationTile(data),
+
+                              _editableTile(
+                                Icons.cake,
+                                "DOB",
+                                "dob",
+                                data['dob'] ?? "",
+                              ),
                               const Divider(),
 
-                              _tile(
+                              _editableTile(
                                 Icons.bloodtype,
                                 "Blood Group",
+                                "bloodGroup",
                                 data['bloodGroup'] ?? "",
                               ),
                               const Divider(),
 
-                              _tile(
+                              _editableTile(
                                 Icons.calendar_today,
                                 "Last Donated",
+                                "lastDonated",
                                 data['lastDonated'] ?? "",
                               ),
                               const Divider(),
 
-                              _tile(
+                              _editableTile(
                                 Icons.warning,
                                 "Allergies",
+                                "allergies",
                                 data['allergies'] ?? "",
                               ),
                               const Divider(),
 
-                              _tile(
+                              _editableTile(
                                 Icons.medication,
                                 "Medications",
+                                "medications",
                                 data['medications'] ?? "",
                               ),
                               const Divider(),
 
-                              _tile(
+                              _editableTile(
                                 Icons.local_hospital,
                                 "Diseases",
+                                "diseases",
                                 data['diseases'] ?? "",
                               ),
                               const Divider(),
 
-                              _tile(
+                              _editableTile(
                                 Icons.edit,
                                 "Tattoo",
+                                "hasTattoo",
                                 data['hasTattoo'] == true ? "Yes" : "No",
-                              ),
-
-                              const SizedBox(height: 20),
-
-                              // ⚠ MESSAGE
-                              if (!isFullyVerified)
-                                const Text(
-                                  "⚠ Verify email & phone to enable request",
-                                  style: TextStyle(color: Colors.red),
-                                ),
-
-                              const SizedBox(height: 10),
-
-                              // 🚨 REQUEST BUTTON
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: isFullyVerified
-                                        ? const Color(0xFFA51313)
-                                        : Colors.grey,
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 14,
-                                    ),
-                                  ),
-                                  onPressed: isFullyVerified
-                                      ? () {
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            const SnackBar(
-                                              content: Text("Request Sent"),
-                                            ),
-                                          );
-                                        }
-                                      : null,
-                                  child: Text(
-                                    isFullyVerified
-                                        ? "Request Blood"
-                                        : "Verification Required",
-                                  ),
-                                ),
                               ),
                             ],
                           ),
@@ -340,7 +274,141 @@ class _ProfileUserState extends State<ProfileUser> {
     );
   }
 
-  Widget _tile(IconData icon, String title, String value) {
+  /// 📍 LOCATION TILE
+  Widget _locationTile(Map<String, dynamic> data) {
+    String state = data['state'] ?? "Not set";
+    String district = data['district'] ?? "Not set";
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            const CircleAvatar(
+              radius: 16,
+              backgroundColor: Color(0xFFF2F2F2),
+              child: Icon(Icons.map, color: Color(0xFFA51313), size: 16),
+            ),
+            const SizedBox(width: 8),
+
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Location",
+                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                  Text(
+                    "$district, $state",
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+
+            IconButton(
+              icon: const Icon(Icons.edit, color: Color(0xFFA51313)),
+              onPressed: () => _showLocationDialog(data),
+            ),
+          ],
+        ),
+        const Divider(),
+      ],
+    );
+  }
+
+  /// 📍 LOCATION DIALOG
+  Future<void> _showLocationDialog(Map<String, dynamic> data) async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    String? selectedState = data['state'];
+    String? selectedDistrict = data['district'];
+
+    List<String> districts = selectedState != null
+        ? List<String>.from(locationData[selectedState])
+        : [];
+
+    await showDialog(
+      context: context,
+      builder: (_) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: const Text("Select Location"),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    value: selectedState,
+                    hint: const Text("State"),
+                    items: states.map((s) {
+                      return DropdownMenuItem(value: s, child: Text(s));
+                    }).toList(),
+                    onChanged: (val) {
+                      setStateDialog(() {
+                        selectedState = val;
+                        districts = List<String>.from(locationData[val]);
+                        selectedDistrict = null;
+                      });
+                    },
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  DropdownButtonFormField<String>(
+                    value: selectedDistrict,
+                    hint: const Text("District"),
+                    items: districts.map((d) {
+                      return DropdownMenuItem(value: d, child: Text(d));
+                    }).toList(),
+                    onChanged: (val) {
+                      setStateDialog(() {
+                        selectedDistrict = val;
+                      });
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Cancel"),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (selectedState == null || selectedDistrict == null)
+                      return;
+
+                    await FirebaseFirestore.instance
+                        .collection("users")
+                        .doc(user!.uid)
+                        .set({
+                          "state": selectedState,
+                          "district": selectedDistrict,
+                          "updatedAt": FieldValue.serverTimestamp(),
+                        }, SetOptions(merge: true));
+
+                    Navigator.pop(context);
+                  },
+                  child: const Text("Save"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// ✏️ NORMAL EDIT TILE
+  Widget _editableTile(
+    IconData icon,
+    String title,
+    String fieldKey,
+    String value,
+  ) {
+    TextEditingController controller = TextEditingController(text: value);
+
     return Row(
       children: [
         CircleAvatar(
@@ -349,6 +417,7 @@ class _ProfileUserState extends State<ProfileUser> {
           child: Icon(icon, color: const Color(0xFFA51313), size: 16),
         ),
         const SizedBox(width: 8),
+
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -358,15 +427,46 @@ class _ProfileUserState extends State<ProfileUser> {
                 style: const TextStyle(color: Colors.grey, fontSize: 12),
               ),
               Text(
-                value,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
+                value.isEmpty ? "Not set" : value,
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ],
           ),
+        ),
+
+        IconButton(
+          icon: const Icon(Icons.edit, color: Color(0xFFA51313)),
+          onPressed: () async {
+            final user = FirebaseAuth.instance.currentUser;
+
+            await showDialog(
+              context: context,
+              builder: (_) => AlertDialog(
+                title: Text("Edit $title"),
+                content: TextField(controller: controller),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text("Cancel"),
+                  ),
+                  ElevatedButton(
+                    onPressed: () async {
+                      await FirebaseFirestore.instance
+                          .collection("users")
+                          .doc(user!.uid)
+                          .set({
+                            fieldKey: controller.text.trim(),
+                            "updatedAt": FieldValue.serverTimestamp(),
+                          }, SetOptions(merge: true));
+
+                      Navigator.pop(context);
+                    },
+                    child: const Text("Save"),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
       ],
     );

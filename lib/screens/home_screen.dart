@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:rapid_aid/screens/all_requests_screen.dart';
 import 'package:rapid_aid/screens/ambulance_nearby.dart';
 import 'package:rapid_aid/screens/create_request_screen.dart';
+import 'package:rapid_aid/screens/donor_list_screen.dart';
 import 'package:rapid_aid/screens/dummy_screen.dart';
 import 'package:rapid_aid/screens/emergency_card_screen.dart';
 import 'package:rapid_aid/screens/request_main_screen.dart';
@@ -527,7 +528,7 @@ class _HomeScreenState extends State<HomeScreen> {
         } else if (title == 'Volunteer') {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const DummyScreen()),
+            MaterialPageRoute(builder: (_) => const DonorListScreen()),
           );
         }
       },

@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -13,43 +15,144 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
+  /// Controllers
   final nameController = TextEditingController();
   final emailController = TextEditingController();
   final phoneController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
-
   final bloodGroupController = TextEditingController();
-  final dobController = TextEditingController();
-  final lastDonatedController = TextEditingController();
 
-  final allergiesController = TextEditingController();
-  final diseasesController = TextEditingController();
-  final medicationsController = TextEditingController();
+  /// JSON DATA
+  Map<String, dynamic> locationData = {};
+  List<String> states = [];
+  List<String> districts = [];
 
-  bool hasTattoo = false;
+  String? selectedState;
+  String? selectedDistrict;
+
+  /// Manual input
+  bool manualLocation = false;
+  final manualStateController = TextEditingController();
+  final manualDistrictController = TextEditingController();
+
   bool isLoading = false;
 
   @override
   void initState() {
     super.initState();
-
-    // 🔔 Notification permission
     FirebaseMessaging.instance.requestPermission();
+    loadLocationData();
+  }
+
+  /// 🔥 LOAD JSON
+  Future<void> loadLocationData() async {
+    final response =
+        await rootBundle.loadString('assets/india_locations.json');
+
+    final data = jsonDecode(response);
+
+    setState(() {
+      locationData = data;
+      states = data.keys.toList();
+    });
+  }
+
+  /// 📍 LOCATION + FCM
+  Future<Map<String, dynamic>> getUserMeta() async {
+    LocationPermission permission = await Geolocator.requestPermission();
+
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      throw Exception("Location permission denied");
+    }
+
+    Position pos = await Geolocator.getCurrentPosition();
+    String? token = await FirebaseMessaging.instance.getToken();
+
+    return {
+      'lat': pos.latitude,
+      'lng': pos.longitude,
+      'fcmToken': token
+    };
+  }
+
+  /// 🚀 SIGNUP
+  Future<void> signup() async {
+    String state;
+    String district;
+
+    /// VALIDATION
+    if (manualLocation) {
+      state = manualStateController.text.trim();
+      district = manualDistrictController.text.trim();
+
+      if (state.isEmpty || district.isEmpty) {
+        showSnack("Enter location manually");
+        return;
+      }
+    } else {
+      if (selectedState == null || selectedDistrict == null) {
+        showSnack("Select state and district");
+        return;
+      }
+      state = selectedState!;
+      district = selectedDistrict!;
+    }
+
+    setState(() => isLoading = true);
+
+    try {
+      UserCredential user = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+              email: emailController.text.trim(),
+              password: passwordController.text.trim());
+
+      var meta = await getUserMeta();
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.user!.uid)
+          .set({
+        "name": nameController.text.trim(),
+        "email": emailController.text.trim(),
+        "phone": phoneController.text.trim(),
+        "bloodGroup": bloodGroupController.text,
+
+        /// LOCATION
+        "state": state,
+        "district": district,
+        "lat": meta['lat'],
+        "lng": meta['lng'],
+
+        "fcmToken": meta['fcmToken'],
+
+        "isDonor": true,
+        "isAvailable": false,
+
+        "createdAt": Timestamp.now(),
+      });
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+      );
+    } catch (e) {
+      showSnack(e.toString());
+    }
+
+    setState(() => isLoading = false);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: true,
       body: Stack(
         children: [
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 colors: [Color(0xFFD32F2F), Color(0xFFFF5252)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
               ),
             ),
           ),
@@ -63,10 +166,9 @@ class _SignupScreenState extends State<SignupScreen> {
                   const Text(
                     "Create Account",
                     style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                    ),
+                        color: Colors.white,
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold),
                   ),
 
                   const SizedBox(height: 30),
@@ -75,9 +177,8 @@ class _SignupScreenState extends State<SignupScreen> {
                     padding: const EdgeInsets.all(25),
                     decoration: const BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(30),
-                      ),
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(30)),
                     ),
                     child: Column(
                       children: [
@@ -95,139 +196,104 @@ class _SignupScreenState extends State<SignupScreen> {
 
                         TextField(
                           controller: phoneController,
-                          keyboardType: TextInputType.phone,
                           decoration: input("Phone", Icons.phone),
                         ),
                         const SizedBox(height: 15),
 
+                        /// BLOOD GROUP
                         DropdownButtonFormField<String>(
-                          decoration: input("Blood Group", Icons.bloodtype),
-                          items:
-                              [
-                                'A+',
-                                'A-',
-                                'B+',
-                                'B-',
-                                'AB+',
-                                'AB-',
-                                'O+',
-                                'O-',
-                              ].map((bg) {
-                                return DropdownMenuItem(
-                                  value: bg,
-                                  child: Text(bg),
-                                );
-                              }).toList(),
-                          onChanged: (val) {
-                            bloodGroupController.text = val!;
-                          },
+                          decoration:
+                              input("Blood Group", Icons.bloodtype),
+                          items: [
+                            'A+','A-','B+','B-','O+','O-','AB+','AB-'
+                          ].map((bg) {
+                            return DropdownMenuItem(
+                                value: bg, child: Text(bg));
+                          }).toList(),
+                          onChanged: (val) =>
+                              bloodGroupController.text = val!,
                         ),
+
                         const SizedBox(height: 15),
 
-                        TextField(
-                          controller: dobController,
-                          readOnly: true,
-                          decoration: input("Date of Birth", Icons.cake),
-                          onTap: () async {
-                            DateTime? picked = await showDatePicker(
-                              context: context,
-                              initialDate: DateTime(2005),
-                              firstDate: DateTime(1950),
-                              lastDate: DateTime.now(),
-                            );
-                            if (picked != null) {
-                              dobController.text =
-                                  "${picked.day}/${picked.month}/${picked.year}";
-                            }
-                          },
+                        /// MANUAL TOGGLE
+                        Row(
+                          mainAxisAlignment:
+                              MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text("Enter manually"),
+                            Switch(
+                              value: manualLocation,
+                              onChanged: (val) =>
+                                  setState(() => manualLocation = val),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 15),
 
-                        TextField(
-                          controller: lastDonatedController,
-                          readOnly: true,
-                          decoration: input(
-                            "Last Donated Date",
-                            Icons.calendar_today,
+                        const SizedBox(height: 10),
+
+                        /// LOCATION UI
+                        if (!manualLocation) ...[
+                          DropdownButtonFormField<String>(
+                            value: selectedState,
+                            hint: const Text("Select State"),
+                            items: states.map((s) {
+                              return DropdownMenuItem(
+                                  value: s, child: Text(s));
+                            }).toList(),
+                            onChanged: (val) {
+                              setState(() {
+                                selectedState = val;
+                                districts = List<String>.from(
+                                    locationData[val]);
+                                selectedDistrict = null;
+                              });
+                            },
+                            decoration: input("State", Icons.map),
                           ),
-                          onTap: () async {
-                            DateTime? picked = await showDatePicker(
-                              context: context,
-                              initialDate: DateTime.now(),
-                              firstDate: DateTime(2000),
-                              lastDate: DateTime.now(),
-                            );
-                            if (picked != null) {
-                              lastDonatedController.text =
-                                  "${picked.day}/${picked.month}/${picked.year}";
-                            }
-                          },
-                        ),
+                          const SizedBox(height: 15),
 
-                        const SizedBox(height: 15),
-
-                        TextField(
-                          controller: allergiesController,
-                          decoration: input("Allergies", Icons.warning),
-                        ),
-                        const SizedBox(height: 15),
-
-                        TextField(
-                          controller: medicationsController,
-                          decoration: input("Medications", Icons.medication),
-                        ),
-                        const SizedBox(height: 15),
-
-                        TextField(
-                          controller: diseasesController,
-                          decoration: input("Diseases", Icons.local_hospital),
-                        ),
-
-                        const SizedBox(height: 15),
-
-                        SwitchListTile(
-                          title: const Text("Do you have a tattoo?"),
-                          value: hasTattoo,
-                          onChanged: (val) {
-                            setState(() => hasTattoo = val);
-                          },
-                        ),
-
-                        const SizedBox(height: 15),
-
-                        TextField(
-                          controller: passwordController,
-                          obscureText: true,
-                          decoration: input("Password", Icons.lock),
-                        ),
-                        const SizedBox(height: 15),
-
-                        TextField(
-                          controller: confirmPasswordController,
-                          obscureText: true,
-                          decoration: input("Confirm Password", Icons.lock),
-                        ),
+                          DropdownButtonFormField<String>(
+                            value: selectedDistrict,
+                            hint: const Text("Select District"),
+                            items: districts.map((d) {
+                              return DropdownMenuItem(
+                                  value: d, child: Text(d));
+                            }).toList(),
+                            onChanged: (val) =>
+                                setState(() => selectedDistrict = val),
+                            decoration:
+                                input("District", Icons.location_city),
+                          ),
+                        ] else ...[
+                          TextField(
+                            controller: manualStateController,
+                            decoration:
+                                input("Enter State", Icons.map),
+                          ),
+                          const SizedBox(height: 15),
+                          TextField(
+                            controller: manualDistrictController,
+                            decoration: input(
+                                "Enter District", Icons.location_city),
+                          ),
+                        ],
 
                         const SizedBox(height: 25),
 
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.red,
-                            minimumSize: const Size(double.infinity, 50),
+                            minimumSize:
+                                const Size(double.infinity, 50),
                           ),
                           onPressed: isLoading ? null : signup,
                           child: isLoading
                               ? const CircularProgressIndicator(
-                                  color: Colors.white,
-                                )
-                              : const Text(
-                                  "SIGN UP",
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
+                                  color: Colors.white)
+                              : const Text("SIGN UP",
+                                  style:
+                                      TextStyle(color: Colors.white)),
                         ),
                       ],
                     ),
@@ -239,105 +305,6 @@ class _SignupScreenState extends State<SignupScreen> {
         ],
       ),
     );
-  }
-
-  // 🚀 LOCATION + TOKEN (FIXED)
-  Future<Map<String, dynamic>> getUserMeta() async {
-    LocationPermission permission;
-
-    permission = await Geolocator.checkPermission();
-
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
-      permission = await Geolocator.requestPermission();
-    }
-
-    if (permission != LocationPermission.always &&
-        permission != LocationPermission.whileInUse) {
-      throw Exception("Location permission denied");
-    }
-
-    Position pos = await Geolocator.getCurrentPosition();
-
-    String? token = await FirebaseMessaging.instance.getToken();
-
-    return {'lat': pos.latitude, 'lng': pos.longitude, 'fcmToken': token};
-  }
-
-  // 🔥 SIGNUP
-  Future<void> signup() async {
-    String name = nameController.text.trim();
-    String email = emailController.text.trim();
-    String phone = phoneController.text.trim();
-    String password = passwordController.text.trim();
-    String confirmPassword = confirmPasswordController.text.trim();
-
-    if (name.isEmpty ||
-        email.isEmpty ||
-        phone.isEmpty ||
-        password.isEmpty ||
-        confirmPassword.isEmpty ||
-        bloodGroupController.text.isEmpty ||
-        dobController.text.isEmpty) {
-      showSnack("Fill all required fields");
-      return;
-    }
-
-    if (password != confirmPassword) {
-      showSnack("Passwords do not match");
-      return;
-    }
-
-    setState(() => isLoading = true);
-
-    try {
-      UserCredential user = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(email: email, password: password);
-
-      Map<String, dynamic> meta;
-
-      try {
-        meta = await getUserMeta();
-      } catch (e) {
-        showSnack("Please allow location permission");
-        setState(() => isLoading = false);
-        return;
-      }
-
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.user!.uid)
-          .set({
-            'name': name,
-            'email': email,
-            'phone': phone,
-            'bloodGroup': bloodGroupController.text,
-            'dob': dobController.text,
-            'lastDonated': lastDonatedController.text,
-            'allergies': allergiesController.text,
-            'medications': medicationsController.text,
-            'diseases': diseasesController.text,
-            'hasTattoo': hasTattoo,
-
-            // 🔥 IMPORTANT
-            'lat': meta['lat'],
-            'lng': meta['lng'],
-            'fcmToken': meta['fcmToken'],
-
-            'createdAt': Timestamp.now(),
-          });
-
-      showSnack("Signup successful");
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
-    } catch (e) {
-      showSnack(e.toString());
-    }
-
-    setState(() => isLoading = false);
   }
 
   InputDecoration input(String text, IconData icon) {
@@ -354,6 +321,7 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   void showSnack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg)));
   }
 }
