@@ -15,6 +15,9 @@ import 'package:rapid_aid/screens/request_main_screen.dart';
 import 'package:rapid_aid/widgets/profile_card.dart';
 import 'package:rapid_aid/screens/login_screen.dart';
 import 'package:rapid_aid/theme/app_theme.dart';
+import 'package:rapid_aid/screens/ai_assistant_screen.dart';
+import 'package:rapid_aid/screens/radar_scanner_screen.dart';
+import 'package:rapid_aid/screens/donor_achievements_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -313,18 +316,41 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ],
                       ),
-                      GestureDetector(
-                        onTap: showLogoutDialog,
-                        child: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.grey.shade100),
-                            boxShadow: AppTheme.premiumShadow,
+                      Row(
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const AiAssistantScreen()),
+                              );
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.grey.shade100),
+                                boxShadow: AppTheme.premiumShadow,
+                              ),
+                              child: const Icon(Icons.support_agent_outlined, color: AppTheme.primary, size: 18),
+                            ),
                           ),
-                          child: const Icon(Icons.logout_outlined, color: AppTheme.primary, size: 18),
-                        ),
+                          const SizedBox(width: 10),
+                          GestureDetector(
+                            onTap: showLogoutDialog,
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.grey.shade100),
+                                boxShadow: AppTheme.premiumShadow,
+                              ),
+                              child: const Icon(Icons.logout_outlined, color: AppTheme.primary, size: 18),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -337,6 +363,64 @@ class _HomeScreenState extends State<HomeScreen> {
                     dob: data['dob'] ?? "",
                     lastDonated: data['lastDonated'] ?? "",
                     location: location,
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // DONOR ACHIEVEMENTS BANNER
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const DonorAchievementsScreen(),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        gradient: AppTheme.darkGradient,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: AppTheme.premiumShadow,
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.withOpacity(0.12),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.workspace_premium_outlined, color: Colors.amber, size: 24),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Silver Donor Badges & Level",
+                                  style: GoogleFonts.poppins(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                Text(
+                                  "View level status and impact badges",
+                                  style: GoogleFonts.poppins(
+                                    color: Colors.white70,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white70, size: 14),
+                        ],
+                      ),
+                    ),
                   ),
 
                   const SizedBox(height: 20),
@@ -434,9 +518,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      buildCategory('SOS Alert', Icons.health_and_safety, Colors.red, const Color(0xFFFFF3F3)),
-                      buildCategory('Ambulance', Icons.local_hospital_outlined, Colors.orange, const Color(0xFFFFF8F2)),
-                      buildCategory('Volunteers', Icons.people_outline, Colors.blue, const Color(0xFFF0F5FF)),
+                      buildCategory('SOS Alert', Icons.health_and_safety, Colors.red, const Color(0xFFFFF3F3), bloodGroup: data['bloodGroup'] ?? "A+"),
+                      buildCategory('Ambulance', Icons.local_hospital_outlined, Colors.orange, const Color(0xFFFFF8F2), bloodGroup: data['bloodGroup'] ?? "A+"),
+                      buildCategory('Volunteers', Icons.people_outline, Colors.blue, const Color(0xFFF0F5FF), bloodGroup: data['bloodGroup'] ?? "A+"),
                     ],
                   ),
 
@@ -590,7 +674,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget buildCategory(String title, IconData icon, Color iconColor, Color bg) {
+  Widget buildCategory(String title, IconData icon, Color iconColor, Color bg, {required String bloodGroup}) {
     return GestureDetector(
       onTap: () {
         if (title.contains('SOS')) {
@@ -606,7 +690,11 @@ class _HomeScreenState extends State<HomeScreen> {
         } else if (title.contains('Volunteers')) {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const DonorListScreen()),
+            MaterialPageRoute(
+              builder: (_) => RadarScannerScreen(
+                bloodGroup: bloodGroup,
+              ),
+            ),
           );
         }
       },
