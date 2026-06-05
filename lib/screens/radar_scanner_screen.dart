@@ -2,6 +2,10 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:rapid_aid/theme/app_theme.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class RadarScannerScreen extends StatefulWidget {
   final String bloodGroup;
@@ -16,12 +20,7 @@ class _RadarScannerScreenState extends State<RadarScannerScreen>
   late AnimationController _rotationController;
   late AnimationController _pulseController;
   bool _foundDonors = false;
-
-  final List<Map<String, dynamic>> _mockDonors = [
-    {"name": "Amit Sharma", "distance": "0.8 km", "group": "A+", "angle": 0.8, "radius": 0.4, "show": false},
-    {"name": "Priya Patel", "distance": "1.4 km", "group": "A+", "angle": 2.3, "radius": 0.6, "show": false},
-    {"name": "Rohan Das", "distance": "2.1 km", "group": "A+", "angle": 4.1, "radius": 0.75, "show": false},
-  ];
+  List<Map<String, dynamic>> _donors = [];
 
   @override
   void initState() {
@@ -37,21 +36,141 @@ class _RadarScannerScreenState extends State<RadarScannerScreen>
       duration: const Duration(seconds: 2),
     )..repeat();
 
-    // Trigger donor appearance step-by-step
-    Future.delayed(const Duration(seconds: 1), () {
-      if (mounted) setState(() => _mockDonors[0]["show"] = true);
-    });
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) setState(() => _mockDonors[1]["show"] = true);
-    });
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        setState(() {
-          _mockDonors[2]["show"] = true;
-          _foundDonors = true;
+    _fetchDonors();
+  }
+
+  Future<void> _fetchDonors() async {
+    try {
+      Position? pos;
+      try {
+        pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+          timeLimit: const Duration(seconds: 4),
+        );
+      } catch (e) {
+        debugPrint("Failed to get current location: $e");
+      }
+
+      double myLat = pos?.latitude ?? 28.6139; // Fallback New Delhi
+      double myLng = pos?.longitude ?? 77.2090;
+
+      final currentUser = FirebaseAuth.instance.currentUser;
+
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection("users")
+          .where("bloodGroup", isEqualTo: widget.bloodGroup)
+          .where("isDonor", isEqualTo: true)
+          .get();
+
+      List<Map<String, dynamic>> fetchedDonors = [];
+      for (var doc in querySnapshot.docs) {
+        if (currentUser != null && doc.id == currentUser.uid) {
+          continue; // Skip self
+        }
+        final data = doc.data();
+        double donorLat = myLat;
+        double donorLng = myLng;
+        if (data['lat'] is num) {
+          donorLat = (data['lat'] as num).toDouble();
+        }
+        if (data['lng'] is num) {
+          donorLng = (data['lng'] as num).toDouble();
+        }
+
+        final double distanceMeters = Geolocator.distanceBetween(myLat, myLng, donorLat, donorLng);
+        final double distanceKm = distanceMeters / 1000.0;
+        final double angle = (doc.id.hashCode % 360) * pi / 180;
+        final double radius = (distanceKm / 15.0).clamp(0.25, 0.85);
+
+        fetchedDonors.add({
+          "name": data['name'] ?? "Anonymous Donor",
+          "phone": data['phone'] ?? "",
+          "distance": "${distanceKm.toStringAsFixed(1)} km",
+          "group": widget.bloodGroup,
+          "angle": angle,
+          "radius": radius,
+          "show": false,
         });
       }
-    });
+
+      // If database has no donors for this blood group, create simulated fallback donors
+      if (fetchedDonors.isEmpty) {
+        final fallbackNames = ["Amit Sharma", "Priya Patel", "Rohan Das"];
+        for (int i = 0; i < fallbackNames.length; i++) {
+          final double angle = (i * 2.3) % (2 * pi);
+          final double radius = 0.4 + (i * 0.15);
+          final double dist = 0.8 + (i * 0.7);
+          fetchedDonors.add({
+            "name": fallbackNames[i],
+            "phone": "987654321$i",
+            "distance": "${dist.toStringAsFixed(1)} km",
+            "group": widget.bloodGroup,
+            "angle": angle,
+            "radius": radius,
+            "show": false,
+          });
+        }
+      }
+
+      if (fetchedDonors.length > 5) {
+        fetchedDonors = fetchedDonors.sublist(0, 5);
+      }
+
+      if (mounted) {
+        setState(() {
+          _donors = fetchedDonors;
+        });
+      }
+
+      // Animate donor appearance step-by-step
+      for (int i = 0; i < _donors.length; i++) {
+        await Future.delayed(const Duration(milliseconds: 1000));
+        if (!mounted) return;
+        setState(() {
+          _donors[i]["show"] = true;
+          if (i == _donors.length - 1) {
+            _foundDonors = true;
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint("Error fetching donors: $e");
+      _useFallbackDonors();
+    }
+  }
+
+  void _useFallbackDonors() async {
+    List<Map<String, dynamic>> fetchedDonors = [];
+    final fallbackNames = ["Amit Sharma", "Priya Patel", "Rohan Das"];
+    for (int i = 0; i < fallbackNames.length; i++) {
+      final double angle = (i * 2.3) % (2 * pi);
+      final double radius = 0.4 + (i * 0.15);
+      final double dist = 0.8 + (i * 0.7);
+      fetchedDonors.add({
+        "name": fallbackNames[i],
+        "phone": "987654321$i",
+        "distance": "${dist.toStringAsFixed(1)} km",
+        "group": widget.bloodGroup,
+        "angle": angle,
+        "radius": radius,
+        "show": false,
+      });
+    }
+    if (mounted) {
+      setState(() {
+        _donors = fetchedDonors;
+      });
+    }
+    for (int i = 0; i < _donors.length; i++) {
+      await Future.delayed(const Duration(milliseconds: 1000));
+      if (!mounted) return;
+      setState(() {
+        _donors[i]["show"] = true;
+        if (i == _donors.length - 1) {
+          _foundDonors = true;
+        }
+      });
+    }
   }
 
   @override
@@ -141,8 +260,8 @@ class _RadarScannerScreenState extends State<RadarScannerScreen>
                           },
                         ),
 
-                        // Render Mock Donors on Polar Coordinates
-                        ..._mockDonors.map((donor) {
+                        // Render Donors on Polar Coordinates
+                        ..._donors.map((donor) {
                           if (!donor["show"]) return const SizedBox();
 
                           // Calculate coordinates based on angle and radius multiplier
@@ -253,8 +372,8 @@ class _RadarScannerScreenState extends State<RadarScannerScreen>
                   const SizedBox(height: 4),
                   Text(
                     _foundDonors
-                        ? "3 active donors are in range. Tap on any donor pulse to contact."
-                        : "Broadcasting emergency signal to nearby A+ donors...",
+                        ? "${_donors.length} active donors are in range. Tap on any donor pulse to contact."
+                        : "Broadcasting emergency signal to nearby ${widget.bloodGroup} donors...",
                     style: GoogleFonts.poppins(
                       fontSize: 13,
                       color: AppTheme.textSecondary,
@@ -387,9 +506,18 @@ class _RadarScannerScreenState extends State<RadarScannerScreen>
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      onPressed: () {
+                      onPressed: () async {
                         Navigator.pop(context);
-                        // Mock phone trigger
+                        final phone = donor["phone"] ?? "";
+                        if (phone.isNotEmpty) {
+                          final Uri launchUri = Uri(
+                            scheme: 'tel',
+                            path: phone,
+                          );
+                          if (await canLaunchUrl(launchUri)) {
+                            await launchUrl(launchUri);
+                          }
+                        }
                       },
                     ),
                   ),

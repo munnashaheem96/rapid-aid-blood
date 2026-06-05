@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:rapid_aid/theme/app_theme.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AiAssistantScreen extends StatefulWidget {
   const AiAssistantScreen({super.key});
@@ -12,7 +14,6 @@ class AiAssistantScreen extends StatefulWidget {
 class _AiAssistantScreenState extends State<AiAssistantScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final List<Map<String, dynamic>> _messages = [];
   bool _isTyping = false;
 
   final List<String> _presets = [
@@ -26,12 +27,6 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   @override
   void initState() {
     super.initState();
-    // Welcome message
-    _messages.add({
-      "text": "Hello! I am your RapidAid AI first-aid assistant. How can I help you handle a medical situation today?",
-      "isUser": false,
-      "time": _currentTime()
-    });
   }
 
   String _currentTime() {
@@ -40,45 +35,61 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   }
 
   void _scrollToBottom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
-  void _sendMessage(String query) {
+  Future<void> _sendMessage(String query) async {
     if (query.trim().isEmpty) return;
 
-    setState(() {
-      _messages.add({
-        "text": query.trim(),
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final text = query.trim();
+    _messageController.clear();
+
+    final userChatRef = FirebaseFirestore.instance
+        .collection("users")
+        .doc(user.uid)
+        .collection("ai_chats");
+
+    try {
+      await userChatRef.add({
+        "text": text,
         "isUser": true,
+        "createdAt": FieldValue.serverTimestamp(),
         "time": _currentTime(),
       });
-      _isTyping = true;
-    });
-    _messageController.clear();
-    _scrollToBottom();
 
-    // Simulate AI response
-    Future.delayed(const Duration(milliseconds: 1200), () {
-      if (!mounted) return;
-      final response = _getAiResponse(query);
       setState(() {
-        _isTyping = false;
-        _messages.add({
-          "text": response,
-          "isUser": false,
-          "time": _currentTime(),
-        });
+        _isTyping = true;
       });
-      _scrollToBottom();
-    });
+
+      final response = _getAiResponse(text);
+
+      // Simulate network / processing latency
+      await Future.delayed(const Duration(milliseconds: 1000));
+
+      await userChatRef.add({
+        "text": response,
+        "isUser": false,
+        "createdAt": FieldValue.serverTimestamp(),
+        "time": _currentTime(),
+      });
+    } catch (e) {
+      debugPrint("Error sending AI message: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isTyping = false;
+        });
+      }
+    }
   }
 
   String _getAiResponse(String query) {
@@ -125,6 +136,13 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return const Scaffold(
+        body: Center(child: Text("Please log in to use the AI Assistant")),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppTheme.bgGrey,
       appBar: AppBar(
@@ -171,56 +189,95 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
 
             // Messages chat list
             Expanded(
-              child: ListView.builder(
-                controller: _scrollController,
-                padding: const EdgeInsets.all(16),
-                itemCount: _messages.length,
-                itemBuilder: (context, index) {
-                  final msg = _messages[index];
-                  final isUser = msg["isUser"] == true;
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection("users")
+                    .doc(user.uid)
+                    .collection("ai_chats")
+                    .orderBy("createdAt", descending: false)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+                    return const Center(
+                      child: CircularProgressIndicator(color: AppTheme.primary),
+                    );
+                  }
 
-                  return Align(
-                    alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 14),
-                      padding: const EdgeInsets.all(16),
-                      constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
-                      decoration: BoxDecoration(
-                        color: isUser ? AppTheme.charcoal : Colors.white,
-                        borderRadius: BorderRadius.only(
-                          topLeft: const Radius.circular(20),
-                          topRight: const Radius.circular(20),
-                          bottomLeft: isUser ? const Radius.circular(20) : const Radius.circular(4),
-                          bottomRight: isUser ? const Radius.circular(4) : const Radius.circular(20),
-                        ),
-                        border: isUser ? null : Border.all(color: Colors.grey.shade100, width: 1),
-                        boxShadow: AppTheme.premiumShadow,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            msg["text"],
-                            style: GoogleFonts.poppins(
-                              color: isUser ? Colors.white : AppTheme.textMain,
-                              fontSize: 13,
-                              height: 1.4,
+                  final docs = snapshot.data?.docs ?? [];
+                  final List<Map<String, dynamic>> messagesList = [];
+
+                  if (docs.isEmpty) {
+                    messagesList.add({
+                      "text": "Hello! I am your RapidAid AI first-aid assistant. How can I help you handle a medical situation today?",
+                      "isUser": false,
+                      "time": _currentTime(),
+                    });
+                  } else {
+                    for (var doc in docs) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      messagesList.add({
+                        "text": data["text"] ?? "",
+                        "isUser": data["isUser"] == true,
+                        "time": data["time"] ?? "",
+                      });
+                    }
+                  }
+
+                  // Auto scroll to bottom
+                  WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+
+                  return ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: messagesList.length,
+                    itemBuilder: (context, index) {
+                      final msg = messagesList[index];
+                      final isUser = msg["isUser"] == true;
+
+                      return Align(
+                        alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 14),
+                          padding: const EdgeInsets.all(16),
+                          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
+                          decoration: BoxDecoration(
+                            color: isUser ? AppTheme.charcoal : Colors.white,
+                            borderRadius: BorderRadius.only(
+                              topLeft: const Radius.circular(20),
+                              topRight: const Radius.circular(20),
+                              bottomLeft: isUser ? const Radius.circular(20) : const Radius.circular(4),
+                              bottomRight: isUser ? const Radius.circular(4) : const Radius.circular(20),
                             ),
+                            border: isUser ? null : Border.all(color: Colors.grey.shade100, width: 1),
+                            boxShadow: AppTheme.premiumShadow,
                           ),
-                          const SizedBox(height: 6),
-                          Align(
-                            alignment: Alignment.bottomRight,
-                            child: Text(
-                              msg["time"],
-                              style: GoogleFonts.poppins(
-                                color: isUser ? Colors.white54 : AppTheme.textSecondary.withOpacity(0.6),
-                                fontSize: 10,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                msg["text"],
+                                style: GoogleFonts.poppins(
+                                  color: isUser ? Colors.white : AppTheme.textMain,
+                                  fontSize: 13,
+                                  height: 1.4,
+                                ),
                               ),
-                            ),
+                              const SizedBox(height: 6),
+                              Align(
+                                alignment: Alignment.bottomRight,
+                                child: Text(
+                                  msg["time"],
+                                  style: GoogleFonts.poppins(
+                                    color: isUser ? Colors.white54 : AppTheme.textSecondary.withOpacity(0.6),
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
+                        ),
+                      );
+                    },
                   );
                 },
               ),
