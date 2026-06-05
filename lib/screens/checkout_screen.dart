@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:rapid_aid/theme/app_theme.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
@@ -66,7 +68,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Order Placed Successfully")),
+      SnackBar(
+        content: Text("Order Placed Successfully", style: GoogleFonts.poppins()),
+        backgroundColor: Colors.green.shade800,
+      ),
     );
 
     Navigator.pop(context);
@@ -74,7 +79,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   void handleError(PaymentFailureResponse response) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Payment Failed")),
+      SnackBar(
+        content: Text("Payment Failed: ${response.message}", style: GoogleFonts.poppins()),
+        backgroundColor: AppTheme.primaryDark,
+      ),
     );
   }
 
@@ -90,7 +98,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         address.text.isEmpty ||
         pincode.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Fill all details")),
+        SnackBar(
+          content: Text("Please fill all details", style: GoogleFonts.poppins()),
+          backgroundColor: AppTheme.charcoal,
+        ),
       );
       return;
     }
@@ -101,127 +112,163 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F7),
-
+      backgroundColor: AppTheme.bgGrey,
       appBar: AppBar(
-        title: const Text("Checkout"),
-        backgroundColor: Colors.red,
+        title: Text(
+          "Checkout",
+          style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 18),
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: Colors.black,
       ),
-
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text(
+              "Shipping Address",
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: AppTheme.textMain.withOpacity(0.8),
+              ),
+            ),
+            const SizedBox(height: 12),
 
             // 📦 ADDRESS CARD
-            _card(
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: AppTheme.cardDecoration(),
               child: Column(
                 children: [
-                  _input(name, "Full Name", Icons.person),
-                  _divider(),
-
-                  _input(phone, "Phone", Icons.phone,
-                      type: TextInputType.phone),
-                  _divider(),
-
-                  _input(address, "Address", Icons.location_on),
-                  _divider(),
-
-                  _input(pincode, "Pincode", Icons.pin,
-                      type: TextInputType.number),
+                  TextField(
+                    controller: name,
+                    decoration: const InputDecoration(
+                      labelText: "Full Name",
+                      prefixIcon: Icon(Icons.person_outline),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: phone,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      labelText: "Phone",
+                      prefixIcon: Icon(Icons.phone_outlined),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: address,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: "Shipping Address",
+                      prefixIcon: Icon(Icons.location_on_outlined),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: pincode,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: "Pincode",
+                      prefixIcon: Icon(Icons.pin_outlined),
+                    ),
+                  ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
+
+            Text(
+              "Order Summary",
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: AppTheme.textMain.withOpacity(0.8),
+              ),
+            ),
+            const SizedBox(height: 12),
 
             // 💰 PRICE DETAILS
-            _card(
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: AppTheme.cardDecoration(),
               child: Column(
                 children: [
-                  _priceRow("Card Price", cardPrice),
-                  _priceRow("Delivery", delivery),
-                  const Divider(),
-                  _priceRow("Total", total, bold: true),
+                  _priceRow("Emergency NFC Card", cardPrice),
+                  const SizedBox(height: 10),
+                  _priceRow("Standard Delivery", delivery),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Divider(),
+                  ),
+                  _priceRow("Total Amount", total, bold: true),
                 ],
               ),
             ),
 
-            const Spacer(),
+            const SizedBox(height: 48),
 
             // 🔥 PAY BUTTON
             GestureDetector(
               onTap: startPayment,
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 16),
+                padding: const EdgeInsets.symmetric(vertical: 18),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFD32F2F), Color(0xFFE53935)],
-                  ),
+                  gradient: AppTheme.primaryGradient,
                   borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.primary.withOpacity(0.24),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
                 ),
                 child: Center(
                   child: Text(
                     "Pay ₹$total",
-                    style: const TextStyle(
+                    style: GoogleFonts.poppins(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      letterSpacing: 0.5,
                     ),
                   ),
                 ),
               ),
             ),
+            const SizedBox(height: 20),
           ],
         ),
       ),
     );
   }
 
-  // 🔥 UI HELPERS
-
-  Widget _card({required Widget child}) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: child,
-    );
-  }
-
-  Widget _input(
-    TextEditingController controller,
-    String hint,
-    IconData icon, {
-    TextInputType type = TextInputType.text,
-  }) {
-    return TextField(
-      controller: controller,
-      keyboardType: type,
-      decoration: InputDecoration(
-        prefixIcon: Icon(icon, color: Colors.red),
-        hintText: hint,
-        border: InputBorder.none,
-      ),
-    );
-  }
-
-  Widget _divider() {
-    return const Divider(height: 20);
-  }
-
+  // 🔥 PRICE ROW HELPER
   Widget _priceRow(String title, int value, {bool bold = false}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(title),
+        Text(
+          title,
+          style: GoogleFonts.poppins(
+            fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+            color: bold ? AppTheme.textMain : AppTheme.textSecondary,
+            fontSize: bold ? 15 : 14,
+          ),
+        ),
         Text(
           "₹$value",
-          style: TextStyle(
-            fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+          style: GoogleFonts.poppins(
+            fontWeight: bold ? FontWeight.w800 : FontWeight.bold,
+            color: bold ? AppTheme.primary : AppTheme.textMain,
+            fontSize: bold ? 16 : 14,
           ),
         ),
       ],

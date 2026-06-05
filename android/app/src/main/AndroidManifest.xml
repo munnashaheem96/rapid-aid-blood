@@ -1,31 +1,42 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.rapid_aid">
 
+    <!-- 🌐 INTERNET -->
     <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- 📍 LOCATION -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+
+    <!-- 🔥 OVERLAY -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+
+    <!-- 🔥 FOREGROUND -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
 
     <application
         android:label="rapid_aid"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true"> <!-- ✅ FIX -->
 
-        <!-- 🔥 CRITICAL -->
+        <!-- 🔥 Overlay -->
         <meta-data
             android:name="flutterOverlayWindow"
             android:value="overlayMain" />
 
+        <!-- 🔔 FCM -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="high_importance_channel" />
 
-        <!-- 🔥 FIXED SERVICE -->
+        <!-- 🔥 Overlay Service -->
         <service
             android:name="com.xsquare.flutter_overlay_window.OverlayService"
             android:exported="false"
             android:foregroundServiceType="mediaProjection" />
 
+        <!-- 📱 MAIN ACTIVITY -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -49,4 +60,5 @@
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
+
 </manifest>

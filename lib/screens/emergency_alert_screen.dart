@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:vibration/vibration.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:rapid_aid/theme/app_theme.dart';
 
 class EmergencyAlertScreen extends StatefulWidget {
   final String bloodGroup;
@@ -20,13 +22,25 @@ class EmergencyAlertScreen extends StatefulWidget {
       _EmergencyAlertScreenState();
 }
 
-class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
+class _EmergencyAlertScreenState extends State<EmergencyAlertScreen>
+    with SingleTickerProviderStateMixin {
   final AudioPlayer player = AudioPlayer();
+  late AnimationController _pulseController;
+  late Animation<double> _scaleAnimation;
 
   @override
   void initState() {
     super.initState();
     startAlert();
+
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat(reverse: true);
+
+    _scaleAnimation = Tween<double>(begin: 0.9, end: 1.1).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
   }
 
   /// 🔊 Start sound + vibration
@@ -64,117 +78,233 @@ class _EmergencyAlertScreenState extends State<EmergencyAlertScreen> {
   @override
   void dispose() {
     stopAlert();
+    _pulseController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async => false, // 🔒 Disable back
+    return PopScope(
+      canPop: false, // 🔒 Disable back swipe/button
       child: Scaffold(
-        backgroundColor: Colors.red.shade900,
-        body: SafeArea(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const SizedBox(height: 40),
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF3E0A0A), Color(0xFF0F0F1A)],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+          child: SafeArea(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const SizedBox(height: 40),
 
-              /// 🔥 TOP TEXT
-              Column(
-                children: [
-                  const Icon(Icons.warning_amber_rounded,
-                      color: Colors.white, size: 100),
-
-                  const SizedBox(height: 20),
-
-                  const Text(
-                    "EMERGENCY ALERT",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-
-                  const SizedBox(height: 15),
-
-                  Text(
-                    "${widget.bloodGroup} BLOOD REQUIRED",
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                    ),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  Text(
-                    widget.location,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                        color: Colors.white70, fontSize: 16),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  Text(
-                    "📞 ${widget.phone}",
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                ],
-              ),
-
-              /// 🔥 BUTTONS (CALL STYLE)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 50),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                /// 🔥 TOP ALARM PANEL
+                Column(
                   children: [
-                    /// ❌ DECLINE
-                    Column(
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            stopAlert();
-                            Navigator.pop(context);
-                          },
-                          child: CircleAvatar(
-                            radius: 35,
-                            backgroundColor: Colors.white,
-                            child: const Icon(Icons.call_end,
-                                color: Colors.red, size: 30),
+                    ScaleTransition(
+                      scale: _scaleAnimation,
+                      child: Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary.withOpacity(0.12),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: AppTheme.primary.withOpacity(0.4),
+                            width: 2,
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        const Text("Decline",
-                            style: TextStyle(color: Colors.white))
-                      ],
+                        child: const Icon(
+                          Icons.warning_amber_rounded,
+                          color: AppTheme.primary,
+                          size: 72,
+                        ),
+                      ),
                     ),
 
-                    /// 📞 CALL
-                    Column(
+                    const SizedBox(height: 32),
+
+                    Text(
+                      "EMERGENCY BROADCAST",
+                      style: GoogleFonts.poppins(
+                        color: Colors.redAccent.shade100,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 2,
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    Text(
+                      "${widget.bloodGroup} REQUIRED",
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.06),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.location_on_outlined, color: AppTheme.primary, size: 18),
+                                const SizedBox(width: 8),
+                                Text(
+                                  "HOSPITAL/LOCATION",
+                                  style: GoogleFonts.poppins(
+                                    color: Colors.white.withOpacity(0.5),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              widget.location,
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.poppins(
+                                color: Colors.white.withOpacity(0.9),
+                                fontSize: 14,
+                                height: 1.4,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        GestureDetector(
-                          onTap: () {
-                            stopAlert();
-                            makeCall(widget.phone);
-                          },
-                          child: const CircleAvatar(
-                            radius: 35,
-                            backgroundColor: Colors.green,
-                            child: Icon(Icons.call,
-                                color: Colors.white, size: 30),
+                        Icon(Icons.phone_in_talk_outlined, color: Colors.green.shade400, size: 16),
+                        const SizedBox(width: 8),
+                        Text(
+                          widget.phone,
+                          style: GoogleFonts.poppins(
+                            color: Colors.white.withOpacity(0.7),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        const Text("Call",
-                            style: TextStyle(color: Colors.white))
                       ],
                     ),
                   ],
                 ),
-              )
-            ],
+
+                /// 🔥 ACTION TRIGGER BUTTONS
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 60),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      /// ❌ DECLINE BUTTON
+                      Column(
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              stopAlert();
+                              Navigator.pop(context);
+                            },
+                            child: Container(
+                              width: 72,
+                              height: 72,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.3),
+                                    blurRadius: 15,
+                                    offset: const Offset(0, 5),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.call_end_outlined,
+                                color: AppTheme.primary,
+                                size: 28,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            "Decline",
+                            style: GoogleFonts.poppins(
+                              color: Colors.white.withOpacity(0.6),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          )
+                        ],
+                      ),
+
+                      /// 📞 CALL BUTTON
+                      Column(
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              stopAlert();
+                              makeCall(widget.phone);
+                            },
+                            child: Container(
+                              width: 72,
+                              height: 72,
+                              decoration: BoxDecoration(
+                                gradient: AppTheme.emeraldGradient,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.green.withOpacity(0.4),
+                                    blurRadius: 15,
+                                    offset: const Offset(0, 5),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.phone_outlined,
+                                color: Colors.white,
+                                size: 28,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            "Call Bystander",
+                            style: GoogleFonts.poppins(
+                              color: Colors.white.withOpacity(0.6),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          )
+                        ],
+                      ),
+                    ],
+                  ),
+                )
+              ],
+            ),
           ),
         ),
       ),

@@ -5,9 +5,10 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-
+import 'package:google_fonts/google_fonts.dart';
 import 'package:rapid_aid/main.dart';
 import 'package:rapid_aid/screens/emergency_alert_screen.dart';
+import 'package:rapid_aid/theme/app_theme.dart';
 
 class CreateRequestScreen extends StatefulWidget {
   const CreateRequestScreen({super.key});
@@ -77,6 +78,7 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
           "location": location,
           "lat": lat,
           "lng": lng,
+          "phone": phoneController.text,
         }),
       );
     } catch (e) {
@@ -84,27 +86,26 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
     }
   }
 
-  /// 🔥 CREATE REQUEST (FIXED)
+  /// 🔥 CREATE REQUEST
   Future createRequest() async {
     if (nameController.text.isEmpty ||
         phoneController.text.isEmpty ||
         unitsController.text.isEmpty) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text("Fill required fields")));
+      ).showSnackBar(const SnackBar(content: Text("Please fill all required fields")));
       return;
     }
 
     if (int.tryParse(unitsController.text) == null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text("Units must be number")));
+      ).showSnackBar(const SnackBar(content: Text("Units must be a valid number")));
       return;
     }
 
     String uid = FirebaseAuth.instance.currentUser!.uid;
 
-    /// 🔥 SAVE DATA BEFORE CLEAR
     final savedPhone = phoneController.text;
     final savedBlood = bloodGroup;
 
@@ -126,15 +127,17 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
 
     await sendAlertToBackend();
 
-    /// ✅ SAFETY CHECK
     if (!mounted) return;
 
-    /// ✅ SHOW SUCCESS BEFORE POP
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text("Request sent successfully")));
+    ).showSnackBar(
+      SnackBar(
+        content: Text("Request sent successfully", style: GoogleFonts.poppins()),
+        backgroundColor: AppTheme.charcoal,
+      ),
+    );
 
-    /// 🔥 CLEAR FIELDS
     nameController.clear();
     bystanderController.clear();
     hospitalController.clear();
@@ -147,10 +150,8 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
       urgency = "Urgent";
     });
 
-    /// 🔙 CLOSE SCREEN
     Navigator.pop(context);
 
-    /// 🚨 NAVIGATE SAFELY USING GLOBAL KEY
     Future.delayed(const Duration(milliseconds: 300), () {
       navigatorKey.currentState?.push(
         MaterialPageRoute(
@@ -167,76 +168,90 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6FA),
-
+      backgroundColor: AppTheme.bgGrey,
+      appBar: AppBar(
+        title: const Text("Create Request"),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                "Create Request",
-                style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+              Text(
+                "Blood Requirement Form",
+                style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textMain),
+              ),
+              Text(
+                "Fill details to request blood instantly in your area",
+                style: GoogleFonts.poppins(color: AppTheme.textSecondary, fontSize: 13),
               ),
 
-              const SizedBox(height: 5),
+              const SizedBox(height: 24),
 
-              const Text(
-                "Fill details to request blood instantly",
-                style: TextStyle(color: Colors.grey),
-              ),
-
-              const SizedBox(height: 20),
-
-              /// 🩸 BLOOD GROUP
-              const Text(
-                "Blood Group",
-                style: TextStyle(fontWeight: FontWeight.bold),
+              /// 🩸 BLOOD GROUP SELECTOR
+              Text(
+                "Select Required Blood Group",
+                style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.charcoal),
               ),
 
               const SizedBox(height: 10),
 
               Wrap(
-                spacing: 10,
+                spacing: 8,
+                runSpacing: 8,
                 children: ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-']
                     .map(
-                      (e) => ChoiceChip(
-                        label: Text(e),
-                        selected: bloodGroup == e,
-                        selectedColor: Colors.red,
-                        labelStyle: TextStyle(
-                          color: bloodGroup == e ? Colors.white : Colors.black,
-                        ),
-                        onSelected: (_) => setState(() => bloodGroup = e),
-                      ),
+                      (e) {
+                        bool isSelected = bloodGroup == e;
+                        return GestureDetector(
+                          onTap: () => setState(() => bloodGroup = e),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: isSelected ? AppTheme.primary : Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: isSelected ? Colors.transparent : Colors.grey.shade200),
+                              boxShadow: AppTheme.premiumShadow,
+                            ),
+                            child: Text(
+                              e,
+                              style: GoogleFonts.poppins(
+                                color: isSelected ? Colors.white : AppTheme.textMain,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     )
                     .toList(),
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
 
               /// 📦 FORM
               _sectionCard(
                 child: Column(
                   children: [
-                    _input(nameController, "Patient Name", Icons.person),
-                    _input(bystanderController, "Bystander", Icons.group),
+                    _input(nameController, "Patient Name", Icons.person_outline),
+                    _input(bystanderController, "Bystander / Relative Name", Icons.group_outlined),
                     _input(
                       hospitalController,
-                      "Hospital",
-                      Icons.local_hospital,
+                      "Hospital Name & Branch",
+                      Icons.local_hospital_outlined,
                     ),
                     _input(
                       unitsController,
-                      "Units",
-                      Icons.bloodtype,
+                      "Required Units (Quantity)",
+                      Icons.bloodtype_outlined,
                       type: TextInputType.number,
                     ),
                     _input(
                       phoneController,
-                      "Phone",
-                      Icons.phone,
+                      "Contact Phone Number",
+                      Icons.phone_outlined,
                       type: TextInputType.phone,
                     ),
                   ],
@@ -246,81 +261,117 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
               const SizedBox(height: 20),
 
               /// ⚠️ URGENCY
-              const Text(
-                "Urgency",
-                style: TextStyle(fontWeight: FontWeight.bold),
+              Text(
+                "Urgency Level",
+                style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.charcoal),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
 
               _sectionCard(
                 child: DropdownButtonFormField<String>(
                   value: urgency,
                   items: ["Normal", "Urgent", "Critical"]
-                      .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                      .map((e) => DropdownMenuItem(value: e, child: Text(e, style: GoogleFonts.poppins())))
                       .toList(),
                   onChanged: (val) => setState(() => urgency = val ?? "Normal"),
-                  decoration: _decoration("Select urgency"),
+                  decoration: const InputDecoration(
+                    labelText: "Urgency Status",
+                    prefixIcon: Icon(Icons.warning_amber_outlined),
+                  ),
                 ),
               ),
 
               const SizedBox(height: 20),
 
               /// 📝 NOTES
-              const Text(
-                "Notes",
-                style: TextStyle(fontWeight: FontWeight.bold),
+              Text(
+                "Additional Instructions (Optional)",
+                style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.charcoal),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
 
               _sectionCard(
                 child: TextField(
                   controller: notesController,
                   maxLines: 3,
-                  decoration: _decoration("Additional notes"),
+                  decoration: const InputDecoration(
+                    hintText: "E.g. Call before visiting, specific entry gates...",
+                  ),
                 ),
               ),
 
               const SizedBox(height: 20),
 
-              /// 📍 LOCATION
+              /// 📍 LOCATION DISPLAY
               _sectionCard(
                 child: Row(
                   children: [
-                    const Icon(Icons.location_on, color: Colors.red),
-                    const SizedBox(width: 10),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryLight,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.my_location, color: AppTheme.primary, size: 18),
+                    ),
+                    const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        location,
-                        style: const TextStyle(color: Colors.grey),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Request Location",
+                            style: GoogleFonts.poppins(fontSize: 10, color: AppTheme.textSecondary, fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            location,
+                            style: GoogleFonts.poppins(color: AppTheme.textMain, fontSize: 13, fontWeight: FontWeight.w500),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
               ),
 
-              const SizedBox(height: 30),
+              const SizedBox(height: 32),
 
-              /// 🚀 BUTTON
-              SizedBox(
+              /// 🚀 SUBMIT REQUEST BUTTON
+              Container(
                 width: double.infinity,
-                height: 55,
+                height: 56,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: AppTheme.primaryGradient,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.primary.withOpacity(0.25),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    )
+                  ],
+                ),
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
+                    backgroundColor: Colors.transparent,
+                    foregroundColor: Colors.white,
+                    shadowColor: Colors.transparent,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
                   onPressed: createRequest,
-                  child: const Text(
-                    "SUBMIT REQUEST",
-                    style: TextStyle(
+                  child: Text(
+                    "SUBMIT EMERGENCY REQUEST",
+                    style: GoogleFonts.poppins(
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      fontSize: 15,
+                      letterSpacing: 0.5,
                     ),
                   ),
                 ),
               ),
+              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -329,16 +380,14 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
   }
 
   /// 🔧 UI HELPERS
-
   Widget _sectionCard({required Widget child}) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10),
-        ],
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.grey.shade100),
+        boxShadow: AppTheme.premiumShadow,
       ),
       child: child,
     );
@@ -351,26 +400,16 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
     TextInputType type = TextInputType.text,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 16),
       child: TextField(
         controller: c,
         keyboardType: type,
-        decoration: _decoration(
-          hint,
-        ).copyWith(prefixIcon: Icon(icon, color: Colors.red)),
-      ),
-    );
-  }
-
-  InputDecoration _decoration(String hint) {
-    return InputDecoration(
-      hintText: hint,
-      filled: true,
-      fillColor: Colors.grey.shade100,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide.none,
+        decoration: InputDecoration(
+          labelText: hint,
+          prefixIcon: Icon(icon),
+        ),
       ),
     );
   }
 }
+

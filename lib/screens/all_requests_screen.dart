@@ -4,6 +4,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:rapid_aid/theme/app_theme.dart';
 
 class AllRequestsScreen extends StatefulWidget {
   const AllRequestsScreen({super.key});
@@ -31,23 +33,29 @@ class _AllRequestsScreenState extends State<AllRequestsScreen> {
 
   /// 📍 LOCATION
   Future<void> loadLocation() async {
-    userPosition = await Geolocator.getCurrentPosition();
-    setState(() {});
+    try {
+      userPosition = await Geolocator.getCurrentPosition();
+      setState(() {});
+    } catch (e) {
+      debugPrint("Error getting location: $e");
+    }
   }
 
   /// 🧠 USER DATA
   Future<void> loadUserData() async {
-    String uid = FirebaseAuth.instance.currentUser!.uid;
+    try {
+      String uid = FirebaseAuth.instance.currentUser!.uid;
 
-    var doc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .get();
+      var doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
 
-    if (doc.exists) {
-      userBloodGroup = doc.data()?['bloodGroup'] ?? "";
-      setState(() {});
-    }
+      if (doc.exists) {
+        userBloodGroup = doc.data()?['bloodGroup'] ?? "";
+        setState(() {});
+      }
+    } catch (_) {}
   }
 
   /// 📞 CALL
@@ -68,8 +76,8 @@ class _AllRequestsScreenState extends State<AllRequestsScreen> {
     final diff = now.difference(date);
 
     if (diff.inMinutes < 1) return "Just now";
-    if (diff.inMinutes < 60) return "${diff.inMinutes} min ago";
-    if (diff.inHours < 24) return "${diff.inHours} hr ago";
+    if (diff.inMinutes < 60) return "${diff.inMinutes}m ago";
+    if (diff.inHours < 24) return "${diff.inHours}h ago";
 
     return DateFormat("dd MMM • hh:mm a").format(date);
   }
@@ -88,7 +96,9 @@ class _AllRequestsScreenState extends State<AllRequestsScreen> {
 
   /// 🎛 FILTER SHEET (PREMIUM)
   void openFilterSheet() {
-    TextEditingController customController = TextEditingController();
+    TextEditingController customController = TextEditingController(
+      text: maxDistance != null ? maxDistance!.toInt().toString() : "",
+    );
 
     showModalBottomSheet(
       context: context,
@@ -98,78 +108,69 @@ class _AllRequestsScreenState extends State<AllRequestsScreen> {
         return StatefulBuilder(
           builder: (context, setModal) {
             return Container(
-              height: MediaQuery.of(context).size.height * 0.65,
-              padding: const EdgeInsets.all(16),
+              height: MediaQuery.of(context).size.height * 0.7,
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
               decoration: const BoxDecoration(
                 color: Colors.white,
-                borderRadius:
-                    BorderRadius.vertical(top: Radius.circular(28)),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
               ),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(10),
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                   ),
 
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
 
-                  const Text(
+                  Text(
                     "Filter Requests",
-                    style: TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.w600),
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.charcoal,
+                    ),
                   ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
 
                   Expanded(
                     child: SingleChildScrollView(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-
-                          const Text("Blood Group",
-                              style:
-                                  TextStyle(fontWeight: FontWeight.w600)),
-
+                          Text(
+                            "Blood Group",
+                            style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.charcoal),
+                          ),
                           const SizedBox(height: 8),
-
                           Wrap(
                             spacing: 8,
                             runSpacing: 8,
-                            children: [
-                              "All",
-                              "A+",
-                              "A-",
-                              "B+",
-                              "B-",
-                              "O+",
-                              "O-",
-                              "AB+",
-                              "AB-"
-                            ]
+                            children: ["All", "A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"]
                                 .map((e) => _chip(
                                       e,
                                       selectedBlood == e,
-                                      () => setModal(
-                                          () => selectedBlood = e),
+                                      () => setModal(() => selectedBlood = e),
                                     ))
                                 .toList(),
                           ),
 
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 20),
 
-                          const Text("Urgency",
-                              style:
-                                  TextStyle(fontWeight: FontWeight.w600)),
-
+                          Text(
+                            "Urgency Status",
+                            style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.charcoal),
+                          ),
                           const SizedBox(height: 8),
-
                           Wrap(
                             spacing: 8,
                             runSpacing: 8,
@@ -177,45 +178,37 @@ class _AllRequestsScreenState extends State<AllRequestsScreen> {
                                 .map((e) => _chip(
                                       e,
                                       selectedUrgency == e,
-                                      () => setModal(
-                                          () => selectedUrgency = e),
+                                      () => setModal(() => selectedUrgency = e),
+                                    ))
+                                .toList(),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          Text(
+                            "Max Distance",
+                            style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.charcoal),
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            children: [10, 20, 30, 50, 100]
+                                .map((e) => _chip(
+                                      "$e km",
+                                      maxDistance == e.toDouble(),
+                                      () => setModal(() => maxDistance = e.toDouble()),
                                     ))
                                 .toList(),
                           ),
 
                           const SizedBox(height: 16),
 
-                          const Text("Distance",
-                              style:
-                                  TextStyle(fontWeight: FontWeight.w600)),
-
-                          const SizedBox(height: 8),
-
-                          Wrap(
-                            spacing: 8,
-                            children: [10, 20, 30, 40, 50]
-                                .map((e) => _chip(
-                                      "$e km",
-                                      maxDistance == e.toDouble(),
-                                      () => setModal(
-                                          () => maxDistance = e.toDouble()),
-                                    ))
-                                .toList(),
-                          ),
-
-                          const SizedBox(height: 10),
-
                           TextField(
                             controller: customController,
                             keyboardType: TextInputType.number,
-                            decoration: InputDecoration(
-                              hintText: "Custom distance (km)",
-                              filled: true,
-                              fillColor: Colors.grey.shade100,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                borderSide: BorderSide.none,
-                              ),
+                            decoration: const InputDecoration(
+                              labelText: "Custom Distance (km)",
+                              hintText: "Enter custom radius limit",
                             ),
                           ),
                         ],
@@ -223,37 +216,53 @@ class _AllRequestsScreenState extends State<AllRequestsScreen> {
                     ),
                   ),
 
+                  const SizedBox(height: 12),
+
                   Row(
                     children: [
                       Expanded(
                         child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
                           onPressed: () {
                             setModal(() {
                               selectedBlood = "All";
                               selectedUrgency = "All";
                               maxDistance = null;
+                              customController.clear();
                             });
                           },
-                          child: const Text("Reset"),
+                          child: Text("Reset", style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
                         ),
                       ),
 
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 12),
 
                       Expanded(
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            gradient: AppTheme.primaryGradient,
                           ),
-                          onPressed: () {
-                            if (customController.text.isNotEmpty) {
-                              maxDistance = double.tryParse(
-                                  customController.text);
-                            }
-                            setState(() {});
-                            Navigator.pop(context);
-                          },
-                          child: const Text("Apply"),
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              foregroundColor: Colors.white,
+                              shadowColor: Colors.transparent,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            ),
+                            onPressed: () {
+                              if (customController.text.isNotEmpty) {
+                                maxDistance = double.tryParse(customController.text);
+                              }
+                              setState(() {});
+                              Navigator.pop(context);
+                            },
+                            child: Text("Apply Filters", style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+                          ),
                         ),
                       ),
                     ],
@@ -272,21 +281,18 @@ class _AllRequestsScreenState extends State<AllRequestsScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          gradient: selected
-              ? const LinearGradient(
-                  colors: [Colors.red, Colors.redAccent])
-              : null,
-          color: selected ? null : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(12),
+          color: selected ? AppTheme.primary : Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: selected ? Colors.transparent : Colors.grey.shade200),
         ),
         child: Text(
           text,
-          style: TextStyle(
-            color: selected ? Colors.white : Colors.black,
+          style: GoogleFonts.poppins(
+            color: selected ? Colors.white : AppTheme.textSecondary,
             fontSize: 12,
+            fontWeight: FontWeight.bold,
           ),
         ),
       ),
@@ -306,42 +312,103 @@ class _AllRequestsScreenState extends State<AllRequestsScreen> {
               1000;
     }
 
+    String blood = data['bloodGroup'] ?? "--";
+    String urgency = data['urgency'] ?? "Normal";
+
+    Color urgencyColor;
+    Color urgencyBg;
+
+    if (urgency == "Critical") {
+      urgencyColor = Colors.red.shade900;
+      urgencyBg = Colors.red.shade50;
+    } else if (urgency == "Urgent") {
+      urgencyColor = Colors.orange.shade900;
+      urgencyBg = Colors.orange.shade50;
+    } else {
+      urgencyColor = Colors.green.shade900;
+      urgencyBg = Colors.green.shade50;
+    }
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 14),
+      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
         color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.grey.shade100),
+        boxShadow: AppTheme.premiumShadow,
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            backgroundColor: const Color(0xFFFFEBEE),
-            child: Text(data['bloodGroup']),
+          /// 🩸 BLOOD GROUP BADGE
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryLight,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppTheme.primary.withOpacity(0.12)),
+            ),
+            child: Center(
+              child: Text(
+                blood,
+                style: GoogleFonts.poppins(
+                  color: AppTheme.primaryDark,
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
           ),
 
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
 
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(data['name'],
-                    style:
-                        const TextStyle(fontWeight: FontWeight.bold)),
-                Text(data['hospital']),
-                Text(data['location'],
-                    style: const TextStyle(color: Colors.grey)),
+                Text(
+                  data['name'] ?? "Unknown Patient",
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.textMain),
+                ),
+                Text(
+                  data['hospital'] ?? "--",
+                  style: GoogleFonts.poppins(fontSize: 12, color: AppTheme.textMain.withOpacity(0.9)),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.location_on_outlined, size: 12, color: Colors.grey),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        data['location'] ?? "--",
+                        style: GoogleFonts.poppins(color: AppTheme.textSecondary, fontSize: 11),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 6),
 
                 /// 🔥 DISTANCE + TIME
                 Row(
                   children: [
-                    Text("${distance.toStringAsFixed(1)} km"),
+                    Text(
+                      "${distance.toStringAsFixed(1)} km",
+                      style: GoogleFonts.poppins(fontSize: 11, color: AppTheme.textSecondary, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      width: 3,
+                      height: 3,
+                      decoration: const BoxDecoration(color: Colors.grey, shape: BoxShape.circle),
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       formatDateTime(data['createdAt']),
-                      style: const TextStyle(
-                          fontSize: 11, color: Colors.grey),
+                      style: GoogleFonts.poppins(fontSize: 11, color: AppTheme.textSecondary),
                     ),
                   ],
                 ),
@@ -349,9 +416,40 @@ class _AllRequestsScreenState extends State<AllRequestsScreen> {
             ),
           ),
 
-          GestureDetector(
-            onTap: () => makeCall(data['phone']),
-            child: const Icon(Icons.call, color: Colors.red),
+          const SizedBox(width: 8),
+
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: urgencyBg,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  urgency.toUpperCase(),
+                  style: GoogleFonts.poppins(
+                    color: urgencyColor,
+                    fontSize: 8,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              GestureDetector(
+                onTap: () => makeCall(data['phone'] ?? ""),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.phone_in_talk, color: Colors.green.shade800, size: 16),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -361,16 +459,13 @@ class _AllRequestsScreenState extends State<AllRequestsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
+      backgroundColor: AppTheme.bgGrey,
 
       appBar: AppBar(
-        title: const Text("Blood Requests",
-            style: TextStyle(color: Colors.black)),
-        backgroundColor: Colors.white,
-        elevation: 0,
+        title: const Text("Blood Requests"),
         actions: [
           IconButton(
-            icon: const Icon(Icons.tune, color: Colors.black),
+            icon: const Icon(Icons.tune_outlined),
             onPressed: openFilterSheet,
           ),
         ],
@@ -378,20 +473,14 @@ class _AllRequestsScreenState extends State<AllRequestsScreen> {
 
       body: Column(
         children: [
-
+          // SEARCH INPUT BOX
           Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: TextField(
               onChanged: (v) => setState(() => searchQuery = v),
-              decoration: InputDecoration(
-                hintText: "Search...",
-                prefixIcon: const Icon(Icons.search, color: Colors.red),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(25),
-                  borderSide: BorderSide.none,
-                ),
+              decoration: const InputDecoration(
+                hintText: "Search by patient, hospital, area...",
+                prefixIcon: Icon(Icons.search_outlined),
               ),
             ),
           ),
@@ -404,7 +493,7 @@ class _AllRequestsScreenState extends State<AllRequestsScreen> {
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(child: CircularProgressIndicator(color: AppTheme.primary));
                 }
 
                 final processed = snapshot.data!.docs.map((doc) {
@@ -461,8 +550,28 @@ class _AllRequestsScreenState extends State<AllRequestsScreen> {
                   return dA.compareTo(dB);
                 });
 
+                if (processed.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.search_off_outlined, color: Colors.grey.shade400, size: 48),
+                        const SizedBox(height: 12),
+                        Text(
+                          "No requests matched",
+                          style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.bold, color: AppTheme.textSecondary),
+                        ),
+                        Text(
+                          "Try changing your search or filters",
+                          style: GoogleFonts.poppins(fontSize: 12, color: AppTheme.textSecondary.withOpacity(0.7)),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
                 return ListView.builder(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   itemCount: processed.length,
                   itemBuilder: (_, i) {
                     return buildCard(processed[i]["data"] as Map<String, dynamic>);
@@ -475,4 +584,4 @@ class _AllRequestsScreenState extends State<AllRequestsScreen> {
       ),
     );
   }
-}
+}

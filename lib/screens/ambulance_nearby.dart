@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:rapid_aid/theme/app_theme.dart';
 import 'add_ambulance_screen.dart';
 
 class AmbulanceNearby extends StatefulWidget {
@@ -21,31 +23,43 @@ class _AmbulanceNearbyState extends State<AmbulanceNearby> {
   }
 
   Future<void> getLocation() async {
-    userPosition = await Geolocator.getCurrentPosition();
-    setState(() {});
+    try {
+      userPosition = await Geolocator.getCurrentPosition();
+      setState(() {});
+    } catch (e) {
+      debugPrint("Error getting location: $e");
+    }
   }
 
   double getDistance(lat1, lon1, lat2, lon2) {
-    return Geolocator.distanceBetween(lat1, lon1, lat2, lon2) / 1000;
+    try {
+      return Geolocator.distanceBetween(lat1, lon1, lat2, lon2) / 1000;
+    } catch (_) {
+      return 0.0;
+    }
   }
 
   void callNumber(String phone) async {
     final uri = Uri.parse("tel:$phone");
-    await launchUrl(uri);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6FA),
+      backgroundColor: AppTheme.bgGrey,
 
       // 🔥 FLOATING ADD BUTTON
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: Colors.red,
+        backgroundColor: AppTheme.primary,
         icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text(
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        label: Text(
           "Add Ambulance",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         onPressed: () {
           Navigator.push(
@@ -56,35 +70,46 @@ class _AmbulanceNearbyState extends State<AmbulanceNearby> {
       ),
 
       body: userPosition == null
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
           : Column(
               children: [
-                // 🔴 HERO HEADER
+                // 🔴 HERO HEADER WITH BACK BUTTON
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(20, 50, 20, 30),
+                  padding: const EdgeInsets.fromLTRB(12, 44, 20, 28),
                   decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFFD32F2F), Color(0xFFE53935)],
-                    ),
+                    gradient: AppTheme.primaryGradient,
                     borderRadius: BorderRadius.vertical(
-                      bottom: Radius.circular(30),
+                      bottom: Radius.circular(36),
                     ),
                   ),
-                  child: const Column(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        "Emergency",
-                        style: TextStyle(color: Colors.white70),
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+                        onPressed: () => Navigator.pop(context),
                       ),
-                      SizedBox(height: 6),
-                      Text(
-                        "Nearby Ambulances",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
+                      const SizedBox(height: 10),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 12.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Emergency Dispatch",
+                              style: GoogleFonts.poppins(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              "Nearby Ambulances",
+                              style: GoogleFonts.poppins(
+                                color: Colors.white,
+                                fontSize: 26,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -99,10 +124,19 @@ class _AmbulanceNearbyState extends State<AmbulanceNearby> {
                         .snapshots(),
                     builder: (context, snapshot) {
                       if (!snapshot.hasData) {
-                        return const Center(child: CircularProgressIndicator());
+                        return const Center(child: CircularProgressIndicator(color: AppTheme.primary));
                       }
 
                       var docs = snapshot.data!.docs;
+
+                      if (docs.isEmpty) {
+                        return Center(
+                          child: Text(
+                            "No active ambulances registered",
+                            style: GoogleFonts.poppins(color: AppTheme.textSecondary),
+                          ),
+                        );
+                      }
 
                       docs.sort((a, b) {
                         var da = a.data() as Map<String, dynamic>;
@@ -126,7 +160,7 @@ class _AmbulanceNearbyState extends State<AmbulanceNearby> {
                       });
 
                       return ListView.builder(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(20),
                         itemCount: docs.length,
                         itemBuilder: (context, index) {
                           var data = docs[index].data() as Map<String, dynamic>;
@@ -157,32 +191,32 @@ class _AmbulanceNearbyState extends State<AmbulanceNearby> {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
-
       decoration: BoxDecoration(
-        color: isNearest ? Colors.red.shade50 : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: isNearest ? Border.all(color: Colors.red, width: 1.5) : null,
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 12),
-        ],
+        color: isNearest ? const Color(0xFFFFF3F3) : Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: isNearest ? AppTheme.primary.withOpacity(0.3) : Colors.grey.shade100,
+          width: isNearest ? 1.5 : 1,
+        ),
+        boxShadow: AppTheme.premiumShadow,
       ),
-
       child: Column(
         children: [
           // 🔝 TOP ROW
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 🚑 ICON
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  color: AppTheme.primary.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                child: const Icon(Icons.local_hospital, color: Colors.red),
+                child: const Icon(Icons.local_hospital_outlined, color: AppTheme.primary, size: 24),
               ),
 
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
 
               Expanded(
                 child: Column(
@@ -190,17 +224,28 @@ class _AmbulanceNearbyState extends State<AmbulanceNearby> {
                   children: [
                     // 🚗 VEHICLE
                     Text(
-                      data['vehicleNo'],
-                      style: const TextStyle(
+                      data['vehicleNo'] ?? "--",
+                      style: GoogleFonts.poppins(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
+                        color: AppTheme.textMain,
                       ),
                     ),
-
-                    Text(data['driverName']),
+                    const SizedBox(height: 2),
                     Text(
-                      data['organization'],
-                      style: const TextStyle(color: Colors.grey),
+                      data['driverName'] ?? "Unknown Driver",
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        color: AppTheme.textMain.withOpacity(0.9),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      data['organization'] ?? "--",
+                      style: GoogleFonts.poppins(
+                        color: AppTheme.textSecondary,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
@@ -213,37 +258,50 @@ class _AmbulanceNearbyState extends State<AmbulanceNearby> {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.black87,
-                  borderRadius: BorderRadius.circular(20),
+                  color: AppTheme.charcoal,
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   "${distance.toStringAsFixed(1)} km",
-                  style: const TextStyle(color: Colors.white),
+                  style: GoogleFonts.poppins(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
           ),
 
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
 
           // 📞 CALL BUTTON
-          SizedBox(
+          Container(
             width: double.infinity,
+            height: 48,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              gradient: AppTheme.emeraldGradient,
+            ),
             child: ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                backgroundColor: Colors.transparent,
+                foregroundColor: Colors.white,
+                shadowColor: Colors.transparent,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(12),
                 ),
+                padding: EdgeInsets.zero,
               ),
-              onPressed: () => callNumber(data['phone']),
-              icon: const Icon(Icons.call, color: Colors.white),
-              label: const Text(
-                "Call Ambulance",
-                style: TextStyle(
+              onPressed: () => callNumber(data['phone'] ?? ""),
+              icon: const Icon(Icons.phone_in_talk, color: Colors.white, size: 18),
+              label: Text(
+                "CALL AMBULANCE",
+                style: GoogleFonts.poppins(
                   color: Colors.white,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                  letterSpacing: 0.5,
                 ),
               ),
             ),
@@ -253,3 +311,4 @@ class _AmbulanceNearbyState extends State<AmbulanceNearby> {
     );
   }
 }
+
