@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:rapid_aid/theme/app_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:rapid_aid/services/ai_triage_service.dart';
 
 class AiAssistantScreen extends StatefulWidget {
   const AiAssistantScreen({super.key});
@@ -70,10 +71,27 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
         _isTyping = true;
       });
 
-      final response = _getAiResponse(text);
+      // Execute AI symptom triage
+      final triageResult = await AiTriageService.triageSymptom(text);
+      final firstAid = _getAiResponse(text);
 
-      // Simulate network / processing latency
-      await Future.delayed(const Duration(milliseconds: 1000));
+      final buffer = StringBuffer();
+      buffer.writeln("📋 **AI Symptom Triage Evaluation:**");
+      buffer.writeln("• **Severity Priority**: ${triageResult.urgency}");
+      buffer.writeln("• **Triage Confidence**: ${(triageResult.confidence * 100).toStringAsFixed(0)}%");
+      buffer.writeln("• **Evaluation rationale**: ${triageResult.rationale}");
+      buffer.writeln();
+      buffer.writeln("🏥 **Triage Guidance Actions:**");
+      if (triageResult.urgency == "Critical" || triageResult.urgency == "Mass Casualty") {
+        buffer.writeln("🚨 **CRITICAL SHOCK THREAT DETECTED**: Dial 108 immediately or trigger the Family SOS emergency tracker.");
+      } else {
+        buffer.writeln("• Monitor vital metrics continuously. Seek professional medical consultation if symptoms persist.");
+      }
+      buffer.writeln();
+      buffer.writeln("📚 **Verified Offline First Aid Steps:**");
+      buffer.writeln(firstAid);
+
+      final response = buffer.toString();
 
       await userChatRef.add({
         "text": response,

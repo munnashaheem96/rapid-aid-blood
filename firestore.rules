@@ -1,0 +1,64 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuth() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if the user is writing their own record
+    function isOwner(userId) {
+      return isAuth() && request.auth.uid == userId;
+    }
+    
+    // Helper function to verify if the request has specific roles (mock verification for rules)
+    function hasRole(role) {
+      return isAuth() && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
+    }
+
+    // 👤 Users Profile Collection
+    match /users/{userId} {
+      allow read: if isAuth();
+      allow write: if isOwner(userId);
+      
+      // 🧠 AI Chats Subcollection (Inside User)
+      match /ai_chats/{chatId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // 🩸 Blood Requests / SOS Alerts Collection
+    match /blood_requests/{requestId} {
+      allow read: if isAuth();
+      allow create: if isAuth() && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if isAuth() && resource.data.uid == request.auth.uid;
+    }
+    
+    // 🚑 Live Ambulance Tracking Collection
+    match /ambulances/{ambulanceId} {
+      allow read: if isAuth();
+      allow write: if isAuth(); // For simulation. In real system: if hasRole('driver') || hasRole('admin')
+    }
+
+    // 💳 Order Card Transactions Collection
+    match /orders/{orderId} {
+      allow read: if isAuth() && resource.data.uid == request.auth.uid;
+      allow create: if isAuth() && request.resource.data.uid == request.auth.uid;
+    }
+
+    // 🏥 Hospital Inventory Collection
+    match /inventory/{itemId} {
+      allow read: if isAuth();
+      allow write: if isAuth(); // For simulation. In real system: if hasRole('hospital')
+    }
+    
+    // 📋 System logs and telemetry
+    match /logs/{logId} {
+      allow create: if isAuth();
+      allow read, update, delete: if isAuth(); // In real: if hasRole('admin')
+    }
+  }
+}

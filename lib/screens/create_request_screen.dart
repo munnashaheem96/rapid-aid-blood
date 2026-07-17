@@ -125,8 +125,15 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
 
     final savedPhone = phoneController.text;
     final savedBlood = bloodGroup;
+    final savedName = nameController.text;
+    final savedUnits = unitsController.text;
+    final savedHospital = hospitalController.text;
+    final savedUrgency = urgency;
+    final savedLat = lat.toString();
+    final savedLng = lng.toString();
+    final savedCreatedAt = DateTime.now().toIso8601String();
 
-    await FirebaseFirestore.instance.collection('blood_requests').add({
+    final docRef = await FirebaseFirestore.instance.collection('blood_requests').add({
       'uid': uid,
       'name': nameController.text,
       'bystander': bystanderController.text,
@@ -171,8 +178,18 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
       navigatorKey.currentState?.push(
         MaterialPageRoute(
           builder: (_) => EmergencyAlertScreen(
+            requestId: docRef.id,
+            patientName: savedName,
             bloodGroup: savedBlood,
+            units: savedUnits,
             location: location,
+            lat: savedLat,
+            lng: savedLng,
+            distance: "0 km",
+            urgency: savedUrgency,
+            createdAt: savedCreatedAt,
+            hospitalId: savedHospital,
+            eta: "0",
             phone: savedPhone,
           ),
         ),

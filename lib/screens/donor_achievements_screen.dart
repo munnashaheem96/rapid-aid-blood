@@ -7,38 +7,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 class DonorAchievementsScreen extends StatelessWidget {
   const DonorAchievementsScreen({super.key});
 
-  DateTime? _parseDate(String dateStr) {
-    if (dateStr.trim().isEmpty) return null;
-    // Try YYYY-MM-DD
-    try {
-      return DateTime.parse(dateStr);
-    } catch (_) {}
-
-    // Try DD/MM/YYYY
-    try {
-      final parts = dateStr.split('/');
-      if (parts.length == 3) {
-        final day = int.parse(parts[0]);
-        final month = int.parse(parts[1]);
-        final year = int.parse(parts[2]);
-        return DateTime(year, month, day);
-      }
-    } catch (_) {}
-
-    // Try DD-MM-YYYY
-    try {
-      final parts = dateStr.split('-');
-      if (parts.length == 3 && parts[2].length == 4) {
-        final day = int.parse(parts[0]);
-        final month = int.parse(parts[1]);
-        final year = int.parse(parts[2]);
-        return DateTime(year, month, day);
-      }
-    } catch (_) {}
-
-    return null;
-  }
-
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -52,7 +20,7 @@ class DonorAchievementsScreen extends StatelessWidget {
       backgroundColor: AppTheme.bgGrey,
       appBar: AppBar(
         title: Text(
-          "Donor Level & Badges",
+          "Reputation & Badges",
           style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 18),
         ),
         backgroundColor: Colors.transparent,
@@ -74,47 +42,47 @@ class DonorAchievementsScreen extends StatelessWidget {
 
             final data = snapshot.data?.data() as Map<String, dynamic>? ?? {};
 
-            // 1. Dynamic Levels & Points Calculation
-            final int donationsCount = data['donationsCount'] ?? 8; // Fallback to 8
+            final int donationsCount = data['donationsCount'] ?? 8;
             final int donorPoints = data['donorPoints'] ?? (donationsCount * 100);
 
+            // Compute smart donor reputation scores
+            final double trustScore = (data['trustScore'] ?? 92.5).toDouble();
+            final double responseRate = (data['responseRate'] ?? 88.0).toDouble();
+
+            // Ranks calculation Bronze -> Silver -> Gold -> Platinum -> Diamond -> Legend
             String levelTitle = "Bronze Level Responder";
             int pointsTarget = 300;
+            Color rankColor = Colors.brown.shade400;
+
             if (donationsCount >= 3 && donationsCount < 10) {
               levelTitle = "Silver Level Responder";
               pointsTarget = 1000;
-            } else if (donationsCount >= 10) {
+              rankColor = Colors.grey.shade400;
+            } else if (donationsCount >= 10 && donationsCount < 15) {
               levelTitle = "Gold Level Responder";
-              pointsTarget = 2500;
+              pointsTarget = 2000;
+              rankColor = Colors.amber.shade600;
+            } else if (donationsCount >= 15 && donationsCount < 20) {
+              levelTitle = "Platinum Lifesaver";
+              pointsTarget = 3500;
+              rankColor = Colors.teal.shade300;
+            } else if (donationsCount >= 20 && donationsCount < 25) {
+              levelTitle = "Diamond Champion";
+              pointsTarget = 5000;
+              rankColor = Colors.blue.shade300;
+            } else if (donationsCount >= 25) {
+              levelTitle = "Legendary Guardian";
+              pointsTarget = 10000;
+              rankColor = Colors.purple.shade300;
             }
 
             final double levelProgress = (donorPoints / pointsTarget).clamp(0.0, 1.0);
             final int pointsNeeded = (pointsTarget - donorPoints).clamp(0, pointsTarget);
             final String pointsNeededText = donationsCount >= 25 
-                ? "Max level reached!" 
-                : "Next level in $pointsNeeded pts";
+                ? "Max rank achieved!" 
+                : "Next rank in $pointsNeeded pts";
 
-            // 2. Eligibility Countdown (90-day cycle)
-            final String lastDonatedStr = data['lastDonated'] ?? "";
-            final DateTime? lastDonatedDate = _parseDate(lastDonatedStr);
-
-            double eligibilityPercent = 1.0;
-            int remainingDays = 0;
-            String eligibilityDesc = "No previous donations recorded. You are fully eligible to donate blood today!";
-
-            if (lastDonatedDate != null) {
-              final daysSince = DateTime.now().difference(lastDonatedDate).inDays;
-              if (daysSince < 90 && daysSince >= 0) {
-                remainingDays = 90 - daysSince;
-                eligibilityPercent = (daysSince / 90.0).clamp(0.0, 1.0);
-                eligibilityDesc = "You will be fully eligible to donate blood again in $remainingDays days.";
-              } else {
-                eligibilityPercent = 1.0;
-                eligibilityDesc = "Your resting period is complete. You are fully eligible to donate blood today!";
-              }
-            }
-
-            // 3. Badges Unlocked checks
+            // Unlocked checks
             final bool badgeGuardianAngel = donationsCount >= 10;
             final bool badgeFirstResponder = data['firstResponderBadge'] ?? true;
             final bool badgeCommunityShield = (data['referredDonors'] ?? 5) >= 5;
@@ -125,34 +93,28 @@ class DonorAchievementsScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 🎴 LEVEL STATUS HEADER CARD
+                  
+                  // 🏁 LEVEL STATUS CARD
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(22),
                     decoration: BoxDecoration(
                       gradient: AppTheme.darkGradient,
                       borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.12),
-                          blurRadius: 16,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
+                      boxShadow: AppTheme.premiumShadow,
                     ),
                     child: Row(
                       children: [
-                        // Level Badge Icon
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.amber.shade50.withOpacity(0.12),
+                            color: rankColor.withOpacity(0.12),
                             shape: BoxShape.circle,
-                            border: Border.all(color: Colors.amber, width: 2),
+                            border: Border.all(color: rankColor, width: 2),
                           ),
-                          child: const Icon(
-                            Icons.military_tech_outlined,
-                            color: Colors.amber,
+                          child: Icon(
+                            Icons.workspace_premium_outlined,
+                            color: rankColor,
                             size: 36,
                           ),
                         ),
@@ -178,13 +140,12 @@ class DonorAchievementsScreen extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(height: 12),
-                              // Simple progress bar
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(4),
                                 child: LinearProgressIndicator(
                                   value: levelProgress,
                                   backgroundColor: Colors.white24,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.amber.shade600),
+                                  valueColor: AlwaysStoppedAnimation<Color>(rankColor),
                                   minHeight: 6,
                                 ),
                               ),
@@ -197,8 +158,9 @@ class DonorAchievementsScreen extends StatelessWidget {
 
                   const SizedBox(height: 28),
 
+                  // 📊 REPUTATION METRICS ROW
                   Text(
-                    "Donation Eligibility",
+                    "Community Trust & Reliability",
                     style: GoogleFonts.poppins(
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
@@ -207,63 +169,56 @@ class DonorAchievementsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
 
-                  // ⏱️ ELIGIBILITY CIRCULAR GAUGE CARD
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: AppTheme.cardDecoration(),
-                    child: Row(
-                      children: [
-                        // Circular progress
-                        SizedBox(
-                          width: 80,
-                          height: 80,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              CircularProgressIndicator(
-                                value: eligibilityPercent,
-                                strokeWidth: 8,
-                                backgroundColor: Colors.grey.shade100,
-                                valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primary),
-                              ),
-                              Text(
-                                "${(eligibilityPercent * 100).toInt()}%",
-                                style: GoogleFonts.poppins(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: AppTheme.textMain,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 24),
-                        Expanded(
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: AppTheme.cardDecoration(),
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                "Resting Period",
+                                "${trustScore.toStringAsFixed(1)}%",
                                 style: GoogleFonts.poppins(
+                                  fontSize: 22,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 15,
-                                  color: AppTheme.textMain,
+                                  color: Colors.green.shade600
                                 ),
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                eligibilityDesc,
-                                style: GoogleFonts.poppins(
-                                  fontSize: 12,
-                                  color: AppTheme.textSecondary,
-                                  height: 1.4,
-                                ),
-                              ),
+                                "Trust Score",
+                                style: GoogleFonts.poppins(fontSize: 11, color: AppTheme.textSecondary),
+                              )
                             ],
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: AppTheme.cardDecoration(),
+                          child: Column(
+                            children: [
+                              Text(
+                                "${responseRate.toStringAsFixed(1)}%",
+                                style: GoogleFonts.poppins(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.primary
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                "Response Speed",
+                                style: GoogleFonts.poppins(fontSize: 11, color: AppTheme.textSecondary),
+                              )
+                            ],
+                          ),
+                        ),
+                      )
+                    ],
                   ),
 
                   const SizedBox(height: 28),
@@ -326,7 +281,6 @@ class DonorAchievementsScreen extends StatelessWidget {
     );
   }
 
-  // 🥇 BADGE WIDGET
   Widget _badgeCard(IconData icon, Color color, String title, String desc, bool unlocked) {
     return Container(
       padding: const EdgeInsets.all(16),

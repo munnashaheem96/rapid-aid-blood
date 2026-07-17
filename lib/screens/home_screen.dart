@@ -6,9 +6,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:rapid_aid/screens/all_requests_screen.dart';
 import 'package:rapid_aid/screens/ambulance_nearby.dart';
-import 'package:rapid_aid/screens/create_request_screen.dart';
-import 'package:rapid_aid/screens/donor_list_screen.dart';
-import 'package:rapid_aid/screens/dummy_screen.dart';
+import 'package:rapid_aid/screens/family_sos_screen.dart';
+import 'package:rapid_aid/screens/health_passport_screen.dart';
+import 'package:rapid_aid/screens/donation_history_screen.dart';
+import 'package:rapid_aid/screens/camera_guidance_screen.dart';
+import 'package:rapid_aid/screens/citizen_registry_screen.dart';
+import 'package:rapid_aid/screens/sustainability_marketplace_screen.dart';
 import 'package:rapid_aid/screens/emergency_card_screen.dart';
 import 'package:rapid_aid/screens/pharmacy_screen.dart';
 import 'package:rapid_aid/screens/request_main_screen.dart';
@@ -18,6 +21,7 @@ import 'package:rapid_aid/theme/app_theme.dart';
 import 'package:rapid_aid/screens/ai_assistant_screen.dart';
 import 'package:rapid_aid/screens/radar_scanner_screen.dart';
 import 'package:rapid_aid/screens/donor_achievements_screen.dart';
+import 'package:rapid_aid/screens/settings_notifications_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -48,8 +52,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
 
       setState(() {
-        location =
-            "${placemarks[0].locality}, ${placemarks[0].administrativeArea}";
+        location = "${placemarks[0].locality}, ${placemarks[0].administrativeArea}";
       });
     } catch (e) {
       if (!mounted) return;
@@ -57,7 +60,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // 🔥 PREMIUM REQUEST CARD
   Widget buildRequestCard(Map<String, dynamic> data) {
     double distanceKm = 0;
 
@@ -68,7 +70,6 @@ class _HomeScreenState extends State<HomeScreen> {
         data['lat'],
         data['lng'],
       );
-
       distanceKm = meters / 1000;
     }
 
@@ -95,16 +96,15 @@ class _HomeScreenState extends State<HomeScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.grey.shade100, width: 1),
         boxShadow: AppTheme.premiumShadow,
       ),
       child: Row(
         children: [
-          /// 🩸 BLOOD GROUP SHIELD
           Container(
-            width: 54,
-            height: 54,
+            width: 52,
+            height: 52,
             decoration: BoxDecoration(
               color: AppTheme.primaryLight,
               borderRadius: BorderRadius.circular(16),
@@ -115,16 +115,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 blood,
                 style: GoogleFonts.poppins(
                   color: AppTheme.primaryDark,
-                  fontSize: 18,
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ),
           ),
-
           const SizedBox(width: 16),
-
-          /// DETAILS
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -132,14 +129,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text(
                   data['name'] ?? "Unknown Patient",
                   style: GoogleFonts.poppins(
-                    fontSize: 15,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                     color: AppTheme.textMain,
                   ),
                 ),
-
                 const SizedBox(height: 4),
-
                 Row(
                   children: [
                     const Icon(Icons.location_on_outlined, size: 13, color: Colors.grey),
@@ -147,18 +142,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     Expanded(
                       child: Text(
                         data['location'] ?? "Nearby Location",
-                        style: GoogleFonts.poppins(
-                          color: AppTheme.textSecondary,
-                          fontSize: 12,
-                        ),
+                        style: GoogleFonts.poppins(color: AppTheme.textSecondary, fontSize: 11),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 4),
-
                 Text(
                   "${distanceKm.toStringAsFixed(1)} km away",
                   style: GoogleFonts.poppins(
@@ -170,8 +160,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-
-          /// RIGHT ACTION & BADGE
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -185,19 +173,17 @@ class _HomeScreenState extends State<HomeScreen> {
                   urgency.toUpperCase(),
                   style: GoogleFonts.poppins(
                     color: urgencyColor,
-                    fontSize: 9,
+                    fontSize: 8,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.5,
                   ),
                 ),
               ),
-
               const SizedBox(height: 12),
-
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: const BoxDecoration(
-                  color: Color(0xFF2E7D32), // Emerald Call Button
+                  color: Color(0xFF2E7D32),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.phone_in_talk, color: Colors.white, size: 14),
@@ -255,10 +241,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: AppTheme.bgGrey,
       body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .snapshots(),
+        stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator(color: AppTheme.primary));
@@ -267,49 +250,47 @@ class _HomeScreenState extends State<HomeScreen> {
           final data = snapshot.data!.data() as Map<String, dynamic>;
           String firstName = (data['name'] ?? "").split(" ").first;
 
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0),
+          return SafeArea(
             child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 50),
-
-                  // TOP BAR / HEADER
+                  
+                  // 1. TOP PREMIUM HEADER
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(3),
+                            padding: const EdgeInsets.all(2),
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              border: Border.all(color: AppTheme.primary, width: 1.5),
+                              gradient: LinearGradient(
+                                colors: [AppTheme.primary, Colors.orange.shade400],
+                              ),
                             ),
                             child: const CircleAvatar(
-                              radius: 18,
-                              backgroundColor: Colors.grey,
-                              child: Icon(Icons.person, color: Colors.white, size: 20),
+                              radius: 20,
+                              backgroundColor: Colors.white,
+                              child: Icon(Icons.person, color: AppTheme.primary, size: 22),
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 14),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                "Hello, $firstName",
-                                style: GoogleFonts.poppins(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.textMain,
-                                ),
+                                "Welcome back,",
+                                style: GoogleFonts.poppins(fontSize: 11, color: AppTheme.textSecondary, fontWeight: FontWeight.w500),
                               ),
                               Text(
-                                "Ready to assist nearby alerts",
+                                firstName,
                                 style: GoogleFonts.poppins(
-                                  fontSize: 11,
-                                  color: AppTheme.textSecondary,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.textMain,
                                 ),
                               ),
                             ],
@@ -318,37 +299,29 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       Row(
                         children: [
-                          GestureDetector(
+                          _appBarIconButton(
+                            icon: Icons.support_agent_outlined,
                             onTap: () {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(builder: (_) => const AiAssistantScreen()),
                               );
                             },
-                            child: Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.grey.shade100),
-                                boxShadow: AppTheme.premiumShadow,
-                              ),
-                              child: const Icon(Icons.support_agent_outlined, color: AppTheme.primary, size: 18),
-                            ),
                           ),
-                          const SizedBox(width: 10),
-                          GestureDetector(
+                          const SizedBox(width: 12),
+                          _appBarIconButton(
+                            icon: Icons.settings_outlined,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const SettingsNotificationsScreen()),
+                              );
+                            },
+                          ),
+                          const SizedBox(width: 12),
+                          _appBarIconButton(
+                            icon: Icons.logout_outlined,
                             onTap: showLogoutDialog,
-                            child: Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.grey.shade100),
-                                boxShadow: AppTheme.premiumShadow,
-                              ),
-                              child: const Icon(Icons.logout_outlined, color: AppTheme.primary, size: 18),
-                            ),
                           ),
                         ],
                       ),
@@ -357,6 +330,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   const SizedBox(height: 24),
 
+                  // 2. PROFILE PROFILE VIRTUAL CARD
                   ProfileCard(
                     name: data['name'] ?? "",
                     bloodGroup: data['bloodGroup'] ?? "",
@@ -367,166 +341,106 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   const SizedBox(height: 20),
 
-                  // DONOR ACHIEVEMENTS BANNER
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const DonorAchievementsScreen(),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        gradient: AppTheme.darkGradient,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: AppTheme.premiumShadow,
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: Colors.amber.withOpacity(0.12),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.workspace_premium_outlined, color: Colors.amber, size: 24),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "Silver Donor Badges & Level",
-                                  style: GoogleFonts.poppins(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                                Text(
-                                  "View level status and impact badges",
-                                  style: GoogleFonts.poppins(
-                                    color: Colors.white70,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white70, size: 14),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // EMERGENCY VIRTUAL CARD PREVIEW NAVIGATION
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const EmergencyCardScreen(),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      height: 110,
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        gradient: AppTheme.blueGradient,
-                        borderRadius: BorderRadius.circular(22),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.blue.withOpacity(0.25),
-                            blurRadius: 15,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            height: 54,
-                            width: 54,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: const Icon(
-                              Icons.credit_card_outlined,
-                              color: Colors.white,
-                              size: 28,
-                            ),
-                          ),
-
-                          const SizedBox(width: 16),
-
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  "Emergency NFC Card",
-                                  style: GoogleFonts.poppins(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  "Carry your medical profile anywhere",
-                                  style: GoogleFonts.poppins(
-                                    color: Colors.white70,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          const Icon(
-                            Icons.arrow_forward_ios_rounded,
-                            color: Colors.white70,
-                            size: 16,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  Text(
-                    'Quick Services',
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textMain,
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
+                  // 3. STATS HIGHLIGHT OVERLAY
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      buildCategory('SOS Alert', Icons.health_and_safety, Colors.red, const Color(0xFFFFF3F3), bloodGroup: data['bloodGroup'] ?? "A+"),
-                      buildCategory('Ambulance', Icons.local_hospital_outlined, Colors.orange, const Color(0xFFFFF8F2), bloodGroup: data['bloodGroup'] ?? "A+"),
-                      buildCategory('Volunteers', Icons.people_outline, Colors.blue, const Color(0xFFF0F5FF), bloodGroup: data['bloodGroup'] ?? "A+"),
+                      _statsIndicator("Lives Saved", "14 rescued", Icons.favorite, Colors.red.shade400),
+                      const SizedBox(width: 12),
+                      _statsIndicator("Trust Index", "Level 4 (Elite)", Icons.stars, Colors.amber.shade600),
+                    ],
+                  ),
+
+                  const SizedBox(height: 28),
+
+                  // 4. CRISIS MANAGEMENT ACTIONS CARD
+                  Text(
+                    "Emergency Services Control",
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.textMain),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // Row of major quick actions
+                  Row(
+                    children: [
+                      _actionCardExpanded("SOS Alert", "Create immediate broadcast", Icons.notification_important, Colors.red, () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const RequestMainScreen()));
+                      }),
+                      const SizedBox(width: 12),
+                      _actionCardExpanded("Ambulance", "Locate responders nearby", Icons.local_hospital, Colors.orange, () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const AmbulanceNearby()));
+                      }),
+                      const SizedBox(width: 12),
+                      _actionCardExpanded("Volunteers", "Radar donor match", Icons.radar, Colors.blue, () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => RadarScannerScreen(bloodGroup: data['bloodGroup'] ?? "A+")));
+                      }),
                     ],
                   ),
 
                   const SizedBox(height: 24),
 
-                  // NEAREST PHARMACY WIDGET
+                  // 5. REGULAR UTILITIES CONTROL PANEL CARD
+                  Text(
+                    "Operations & Safety Tools",
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.textMain),
+                  ),
+                  const SizedBox(height: 12),
+
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: Colors.grey.shade100),
+                      boxShadow: AppTheme.premiumShadow,
+                    ),
+                    child: Column(
+                      children: [
+                        _utilityRowItem(
+                          title: "Health Digital Passport",
+                          desc: "Secure encrypted medical profile & MRIs",
+                          icon: Icons.lock_outline,
+                          iconColor: Colors.teal,
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HealthPassportScreen())),
+                        ),
+                        const Divider(height: 24, thickness: 0.8),
+                        _utilityRowItem(
+                          title: "Family SOS Standby",
+                          desc: "Track and broadcast coordinates to network",
+                          icon: Icons.shield_outlined,
+                          iconColor: Colors.indigo,
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FamilySosScreen())),
+                        ),
+                        const Divider(height: 24, thickness: 0.8),
+                        _utilityRowItem(
+                          title: "Sustainability & Plugins",
+                          desc: "Browse Marketplace, verify volunteer hours",
+                          icon: Icons.storefront_outlined,
+                          iconColor: Colors.purple,
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SustainabilityMarketplaceScreen())),
+                        ),
+                        const Divider(height: 24, thickness: 0.8),
+                        _utilityRowItem(
+                          title: "Citizen Responder Registry",
+                          desc: "Register in local CPR first-responder grid",
+                          icon: Icons.app_registration_outlined,
+                          iconColor: Colors.teal.shade700,
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CitizenRegistryScreen())),
+                        ),
+                        const Divider(height: 24, thickness: 0.8),
+                        _utilityRowItem(
+                          title: "Camera First-Aid AI",
+                          desc: "Visual feedback boundaries overlay guide",
+                          icon: Icons.videocam_outlined,
+                          iconColor: Colors.blueGrey,
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CameraGuidanceScreen())),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // 6. PHARMACY RADIAL GLOW BUTTON CARD
                   GestureDetector(
                     onTap: () {
                       Navigator.push(
@@ -536,15 +450,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                     child: Container(
                       width: double.infinity,
-                      height: 84,
-                      padding: const EdgeInsets.symmetric(horizontal: 18),
+                      padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
                         gradient: AppTheme.emeraldGradient,
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(24),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.green.withOpacity(0.2),
-                            blurRadius: 15,
+                            color: Colors.green.withOpacity(0.24),
+                            blurRadius: 16,
                             offset: const Offset(0, 6),
                           ),
                         ],
@@ -563,18 +476,17 @@ class _HomeScreenState extends State<HomeScreen> {
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text(
                                   'Find Nearest Pharmacy',
                                   style: GoogleFonts.poppins(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
-                                    fontSize: 15,
+                                    fontSize: 14,
                                   ),
                                 ),
                                 Text(
-                                  'Locate medical suppliers around you',
+                                  'Locate medical suppliers around your geofence',
                                   style: GoogleFonts.poppins(
                                     color: Colors.white70,
                                     fontSize: 11,
@@ -589,27 +501,25 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 28),
 
+                  // 7. RECENT REQUEST STREAMS
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
                         'Recent Blood Requests',
                         style: GoogleFonts.poppins(
-                          fontSize: 18,
+                          fontSize: 14,
                           fontWeight: FontWeight.bold,
                           color: AppTheme.textMain,
                         ),
                       ),
-
                       GestureDetector(
                         onTap: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(
-                              builder: (_) => const AllRequestsScreen(),
-                            ),
+                            MaterialPageRoute(builder: (_) => const AllRequestsScreen()),
                           );
                         },
                         child: Text(
@@ -617,7 +527,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           style: GoogleFonts.poppins(
                             color: AppTheme.primary,
                             fontWeight: FontWeight.bold,
-                            fontSize: 13,
+                            fontSize: 12,
                           ),
                         ),
                       ),
@@ -644,8 +554,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 24.0),
                           child: Center(
                             child: Text(
-                              "No requests listed nearby",
-                              style: GoogleFonts.poppins(color: AppTheme.textSecondary),
+                              "No active emergency alerts nearby",
+                              style: GoogleFonts.poppins(color: AppTheme.textSecondary, fontSize: 12),
                             ),
                           ),
                         );
@@ -656,9 +566,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         physics: const NeverScrollableScrollPhysics(),
                         itemCount: docs.length,
                         itemBuilder: (context, index) {
-                          final data =
-                              docs[index].data() as Map<String, dynamic>;
-
+                          final data = docs[index].data() as Map<String, dynamic>;
                           return buildRequestCard(data);
                         },
                       );
@@ -674,57 +582,49 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget buildCategory(String title, IconData icon, Color iconColor, Color bg, {required String bloodGroup}) {
+  Widget _appBarIconButton({required IconData icon, required VoidCallback onTap}) {
     return GestureDetector(
-      onTap: () {
-        if (title.contains('SOS')) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const RequestMainScreen()),
-          );
-        } else if (title.contains('Ambulance')) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const AmbulanceNearby()),
-          );
-        } else if (title.contains('Volunteers')) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => RadarScannerScreen(
-                bloodGroup: bloodGroup,
-              ),
-            ),
-          );
-        }
-      },
+      onTap: onTap,
       child: Container(
-        width: (MediaQuery.of(context).size.width - 60) / 3,
-        padding: const EdgeInsets.symmetric(vertical: 16),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.grey.shade100),
+          boxShadow: AppTheme.premiumShadow,
+        ),
+        child: Icon(icon, color: AppTheme.primary, size: 18),
+      ),
+    );
+  }
+
+  Widget _statsIndicator(String label, String value, IconData icon, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: Colors.grey.shade100),
           boxShadow: AppTheme.premiumShadow,
         ),
-        child: Column(
+        child: Row(
           children: [
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: bg,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: iconColor, size: 22),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: GoogleFonts.poppins(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textMain,
+            Icon(icon, color: color, size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: GoogleFonts.poppins(fontSize: 10, color: AppTheme.textSecondary, fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    value,
+                    style: GoogleFonts.poppins(fontSize: 12, color: AppTheme.textMain, fontWeight: FontWeight.bold),
+                  ),
+                ],
               ),
             ),
           ],
@@ -732,5 +632,91 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-}
 
+  Widget _actionCardExpanded(String title, String desc, IconData icon, Color baseColor, VoidCallback onTap) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: baseColor.withOpacity(0.08)),
+            boxShadow: AppTheme.premiumShadow,
+          ),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: baseColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: baseColor, size: 20),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textMain),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                desc,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(fontSize: 8, color: AppTheme.textSecondary),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _utilityRowItem({
+    required String title,
+    required String desc,
+    required IconData icon,
+    required Color iconColor,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        color: Colors.transparent,
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: iconColor.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: iconColor, size: 20),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textMain),
+                  ),
+                  Text(
+                    desc,
+                    style: GoogleFonts.poppins(fontSize: 10, color: AppTheme.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.grey, size: 12),
+          ],
+        ),
+      ),
+    );
+  }
+}
